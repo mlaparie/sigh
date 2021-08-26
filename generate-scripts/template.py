@@ -2,7 +2,7 @@
 # Scrap event information from rsoe.edis.org
 # Copyright aetin, see gemini://aetin.art/earth.gmi
 # Modified by Kabouik, 2021
-# Dependencies: bs4, requests, json, beautifulsoup, jtbl
+# Dependencies: bs4, requests, json
 
 import requests
 import json
@@ -17,4 +17,5 @@ if __name__ == "__main__":
     locs = [ x.text.replace('\n', '').strip(' ')  for x in  sreplacemes.findAll("td", {"class": "location"}) ]
     titles = [ x.text.replace('\n', '').strip(' ')  for x in  sreplacemes.findAll("h5", {"class": "title"}) ]
     details = [ x.find("a", href=True)["href"]  for x in  sreplacemes.findAll("td", {"class": "details"}) ]
-    print(json.dumps({"Date": replaceme, "Location": locs, "Title": titles, "Details": details}))
+    print(json.dumps({"Date": replaceme, "Location": locs, "Title": titles, "Details": details}), file=open('data/replaceme.json', 'a'))
+    print('✔ Appended data to data/replaceme.json.')

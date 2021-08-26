@@ -7,7 +7,7 @@
 # (Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
 
 while read -r code;
-    do sed "s/replaceme/$code/g" template.py > "../$code.py";
-    chmod +x "../$code.py";
+    do sed "s/replaceme/$code/g" generate-scripts/template.py > "$code.py";
+    chmod +x "$code.py";
     printf "$code.py"; printf '\033[32;1m %s \033[0m\n' "✔" ;
-done < codes.txt
+done < generate-scripts/codes.txt
