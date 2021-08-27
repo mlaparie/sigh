@@ -89,11 +89,14 @@ setup() {
 }
 
 get() {
+    export WE_DIR
     if [ -z "$1" ]; then
-        _pht "Usage: we -g [CODE]"
-        _pht "'$(basename "$0") -l' to list available codes (case insensitive)" ; exit 0
+        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
+        python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+        if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
+        fi
     else
-        export WE_DIR
         mkdir -p "$WE_DIR"/data
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
@@ -104,18 +107,31 @@ get() {
 }
 
 print() {
-    cod=$(echo "$1" | tr '[:lower:]' '[:upper:]') 
-    jello < "$WE_DIR"/data/"$cod".json
+    if [ -z "$1" ]; then
+        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
+        jello < "$WE_DIR"/data/"$cod".json
+    else
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+        jello < "$WE_DIR"/data/"$cod".json
+    fi
 }
 
 table() {
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]') 
-        #cat "$WE_DIR"/data/"$cod".json | jello '\
-        #result = []
-        #for d, t, x in zip(_.Date, _.Title, _.Details):
-        #    result.append({"Date": d, "Title: t, "Details": x})
-        #result' | jtbl -n
-        printf "Table output not implemented yet. :("
+    if [ -z "$1" ]; then
+        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
+        jello '\
+result = []
+for d, t, x in zip(_.Date, _.Title, _.Details):
+    result.append({"Date": d, "Title": t, "Details": x})
+result' < "$WE_DIR"/data/"$cod".json | jtbl -n
+    else
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+        jello '\
+result = []
+for d, t, x in zip(_.Date, _.Title, _.Details):
+    result.append({"Date": d, "Title": t, "Details": x})
+result' < "$WE_DIR"/data/"$cod".json | jtbl -n
+    fi
 }
 
 listcodes() {
