@@ -104,7 +104,7 @@ table() {
 }
 
 listcodes() {
-    cat "$WE_DIR"/setup/codes.txt | tr '\n' '\t'
+    cat "$WE_DIR"/setup/codes.txt | tr '\n' '\t' | fold -w 80 -s
 }
 
 getcodes() {
