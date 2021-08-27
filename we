@@ -41,7 +41,7 @@ usage() {
     _pht "Usage: $(basename "$0") [OPTION]"
     _pht
     _pht "'$(basename "$0")' depends on its directory structure, do not manually move the executable"
-    _pht "to your PATH. './$(basename "$0") --setup' will create a symbolic link to your ~/.local/bin."
+    _pht "to your PATH. './$(basename "$0") --setup' will offer to make a symbolic link in ~/.local/bin/."
     _pht
     _pht "  Options:"
     _phi "-g, --get [CODE]          Scrap data for event code to data/CODE.json."
@@ -117,21 +117,7 @@ print() {
 }
 
 table() {
-    if [ -z "$1" ]; then
-        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
-        jello '\
-result = []
-for d, t, x in zip(_.Date, _.Title, _.Details):
-    result.append({"Date": d, "Title": t, "Details": x})
-result' < "$WE_DIR"/data/"$cod".json | jtbl -n | less -S
-    else
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        jello '\
-result = []
-for d, t, x in zip(_.Date, _.Title, _.Details):
-    result.append({"Date": d, "Title": t, "Details": x})
-result' < "$WE_DIR"/data/"$cod".json | jtbl -n | less -S
-    fi
+    print "$1" | jtbl -n | less -S
 }
 
 listcodes() {
@@ -185,6 +171,12 @@ cleardata() {
     fi
 }
 
+interactive() {
+    usage ; exit 0
+#    arg="$(fzf < $(printf "get\nprint\ntable\nlistcodes\nsetup\nupdatecodes\nrm-scripts\nclear-data\nversion\nhelp"))"
+#    we $arg
+}
+
 # Dependency check
 for prog in jello jtbl sed less fzf; do
      ! has "$prog" && dependencies_not_installed="${dependencies_not_installed}${prog}, "
@@ -194,7 +186,7 @@ done
 
 # Options
 if [ -z "$1" ]; then
-    usage ; exit 0
+    interactive ;
 fi
 
     case "$1" in
@@ -214,6 +206,8 @@ fi
         rmscripts "$WE_DIR" ; exit ;;
     "-C"|"--clear-data")
         cleardata "$2" "$WE_DIR" ; exit ;;
+    "-i"|"--interactive")
+        interactive "$2" "$WE_DIR" ; exit ;;
     "-v"|"--version")
         version "$WE_DIR" ; exit 0 ;;
     "-h"|"--help")
