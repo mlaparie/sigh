@@ -58,7 +58,7 @@ CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT
 EXR	HAI	HEW	LIT	PTF	SEW	STO
 
 $ we --get epa
-Appended data to /home/user/Projects/worldevents/data/EPA.json. ✔
+Appended 3 event(s) to /home/user/Projects/worldevents/data/EPA.json. ✔
 
 $ we --print epa
 {
