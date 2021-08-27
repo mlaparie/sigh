@@ -27,30 +27,27 @@ Automatically updating codes is not supported yet.
 ## Usage
 
 ```plain
-$ we
-Scrap worldwide events from multiple categories (codes) from rsoe-edis.org.
+Scrap worldwide events from rsoe-edis.org
 
 Usage: we [OPTION]
 
-'we' depends on its directory structure, so just use a symbolic
-link if you want to have it in your PATH, do not move the executable alone.
-subdirectories. Do not move the executable. Using a symlink is fine.
+'we' depends on its directory structure, do not manually move the executable
+to your PATH. './we --setup' will create a symbolic link to your ~/.local/bin.
 
   Options:
     -g, --get [CODE]          Scrap data for event code to data/CODE.json.
     -p, --print [CODE]        Print saved data as json for event code.
     -t, --table [CODE]        Print saved data as table for event code.
     -l, --list-codes          List codes currently associated to scripts.
-    -s, --setup               Create scrap scripts for each existing event code.
+    -s, --setup               Create event scrap scripts and optionally link 'we' to PATH.
     -u, --update-codes        Fetch current event codes and save them.
-    -R, --rm-scripts          Remove existing script(s) (clean scripts/ directory).
+    -R, --rm-scripts          Remove existing script(s) and optionally remove 'we' from PATH.
     -C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory).
-    -v, --version             Print program version and exit.
+    -v, --version             Print version.
     -h, --help                Print this help.
 
   Improve me:
-    https://git.teknik.io/matf/worldevents
-```
+    https://git.teknik.io/matf/worldevents```
 #### Example for animal epidemic (code EPA):
 
 ```bash
@@ -58,7 +55,7 @@ $ we --list-codes
 AAT	EPA	EPD	EPH	INH	HEC	LSC	PSI	SDM	TER	
 EVP	PPP	IND	SUE	IBE	OUD	ERQ	LSL	VOE	FLD	
 CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT	
-EXR	HAI	HEW	LIT	PTF	SEW	STO	
+EXR	HAI	HEW	LIT	PTF	SEW	STO
 
 $ we --get epa
 Appended data to /home/user/Projects/worldevents/data/EPA.json. ✔
@@ -107,13 +104,14 @@ Wrn: permanently delete AIR.json? This cannot be undone. [y/N] y
 /home/user/Projects/worldevents/data/AIR.json removed. ✔
 
 $ we --clear-data
-Wrn: you are about to permanently delete 8 previously scraped data file(s). Are you sure? Type YES to confirm. YES
+Wrn: you are about to permanently delete 8 previously scraped data file(s). Type YES to confirm. YES
 /home/user/Projects/worldevents/data/ directory cleaned. ✔
 
 $ we --rm-scripts
 Wrn: remove 37 scrap scripts? [y/N] y
 /home/user/Projects/worldevents/scripts/ directory cleaned. ✔
 Run 'we -s' to regenerate scrap scripts.
+Also remove 'we' symbolic link from your PATH? [y/N] n
 ```
 
 ## To do
