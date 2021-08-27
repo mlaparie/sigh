@@ -2,6 +2,10 @@
 
 Script to scrap, save and print event data from [rsoe-edis.org](https://rsoe-edis.org/eventList), per event category.
 
+<p align="center">
+  <img width="800" src="https://gist.github.com/Kabouik/ff6a41498fe4dc63488d2126c8ed8e2b/raw/5852fbe7e96fbbde82586a88888169054171ffd9/we.svg">
+</p>
+
 ## Installation
 #### Dependencies
 - `bs4`
@@ -111,6 +115,7 @@ $ we --rm-scripts
 Wrn: remove 37 scrap scripts? [y/N] y
 /home/user/Projects/worldevents/scripts/ directory cleaned. ✔
 Run 'we -s' to regenerate scrap scripts.
+
 Also remove 'we' symbolic link from your PATH? [y/N] n
 ```
 
