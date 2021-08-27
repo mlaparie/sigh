@@ -26,13 +26,90 @@ Automatically updating codes is not supported yet.
 
 ## Usage
 ```
+$ we
+Scrap worldwide events from multiple categories (codes) from rsoe-edis.org.
 
+Usage: we [OPTION]
+
+'we' depends on its directory structure, so just use a symbolic
+link if you want to have it in your PATH, do not move the executable alone.
+subdirectories. Do not move the executable. Using a symlink is fine.
+
+  Options:
+    -g, --get [CODE]          Scrap data for event code to data/CODE.json.
+    -p, --print [CODE]        Print saved data as json for event code.
+    -t, --table [CODE]        Print saved data as table for event code.
+    -l, --list-codes          List codes currently associated to scripts.
+    -s, --setup               Create scrap scripts for each existing event code.
+    -u, --update-codes        Fetch current event codes and save them.
+    -R, --rm-scripts          Remove existing script(s) (clean scripts/ directory).
+    -C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory).
+    -v, --version             Print program version and exit.
+    -h, --help                Print this help.
+
+  Improve me:
+    https://git.teknik.io/matf/worldevents
 ```
-#### Example for floods (code FLD):
+#### Example for animal epidemic (code EPA):
 
 ```bash
-we --get fld
-we --print fld
+$ we --list-codes
+AAT	EPA	EPD	EPH	INH	HEC	LSC	PSI	SDM	TER	EVP	PPP	IND	SUE	IBE	OUD	ERQ	LSL	VOE	FLD	CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT	EXR	HAI	HEW	LIT	PTF	SEW	STO
+
+$ we --get epa
+Appended data to /home/user/Projects/worldevents/data/FLD.json. ✔
+
+$ we --print fld
+user@debian-sid ~  $ we -p EPA
+{
+  "Date": [
+    "2021-08-25 20:28:42",
+    "2021-08-25 19:49:22",
+    "2021-08-25 16:39:46"
+  ],
+  "Location": [
+    "Benin, Africa",
+    "Nigeria, Africa",
+    "South Africa, Africa"
+  ],
+  "Title": [
+    "Benin - Benin confirms H5N1 avian flu outbreak",
+    "Nigeria - Nigeria's southern state reports bird flu outbreak",
+    "South Africa - Khayelitsha animal clinic records two rabies cases after more than 20 years"
+  ],
+  "Details": [
+    "https://rsoe-edis.org/eventList/details/111380/0",
+    "https://rsoe-edis.org/eventList/details/111370/0",
+    "https://rsoe-edis.org/eventList/details/111325/0"
+  ]
+}
+
+###
+# Not implemented yet
+###
+$ we -t epa
+Date                 Title                                                                        Details
+-------------------  ---------------------------------------------------------------------------  ------------------------------------------------
+2021-08-25 20:28:42  Benin - Benin confirms H5N1 avian flu outbreak                               https://rsoe-edis.org/eventList/details/111380/0
+2021-08-25 19:49:22  Nigeria - Nigeria's southern state reports bird flu outbreak                 https://rsoe-edis.org/eventList/details/111370/0
+2021-08-25 16:39:46  South Africa - Khayelitsha animal clinic records two rabies cases after mor  https://rsoe-edis.org/eventList/details/111325/0
+```
+
+#### Clear existing data
+
+```bash
+$ we -C air                                                                                  5 changed files  master 
+Wrn: permanently delete AIR.json? This cannot be undone. [y/N] y
+/home/user/Projects/worldevents/data/AIR.json removed. ✔
+
+$ we -C
+Wrn: you are about to permanently delete 8 previously scraped data file(s). Are you sure? Type YES to confirm. YES
+/home/user/Projects/worldevents/data/ directory cleaned. ✔
+
+$ we -R
+Wrn: remove 37 scrap scripts? [y/N] y
+/home/user/Projects/worldevents/scripts/ directory cleaned. ✔
+Run 'we -s' to regenerate scrap scripts.
 ```
 
 ## To do
