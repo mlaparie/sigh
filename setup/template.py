@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Scrap event information from rsoe.edis.org
 # Copyright aetin, see gemini://aetin.art/earth.gmi
-# Modified by Kabouik, 2021
+# Modified by matf
 # Dependencies: bs4, requests, json
 
 import os
@@ -19,5 +19,7 @@ if __name__ == "__main__":
     locs = [ x.text.replace('\n', '').strip(' ')  for x in  sreplacemes.findAll("td", {"class": "location"}) ]
     titles = [ x.text.replace('\n', '').strip(' ')  for x in  sreplacemes.findAll("h5", {"class": "title"}) ]
     details = [ x.find("a", href=True)["href"]  for x in  sreplacemes.findAll("td", {"class": "details"}) ]
-    print(json.dumps({"Date": replaceme, "Location": locs, "Title": titles, "Details": details}), file=open(wedir+'/data/replaceme.json', 'a'))
+    json_data = json.dumps({"Date": replaceme, "Location": locs, "Title": titles, "Details": details})
+    print(json_data, file=open(wedir+'/data/replaceme.json', 'a'))
     print('Appended data to '+wedir+'/data/replaceme.json. \033[32;1m✔\033[0m')
+    print(len(json_data[0]['Date'])+' events.')

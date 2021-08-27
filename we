@@ -134,6 +134,7 @@ rmscripts() {
         printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
         printf "Run '%s' to regenerate scrap scripts.\n" "$(basename "$0") -s"
     fi
+
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
     has we && in_path="true"
     if [ "$in_path" == "true" ]; then
