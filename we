@@ -7,7 +7,7 @@
 # 
 # Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
-VERSION=0.2
+VERSION=0.3
 WE_DIR="$(dirname "$(readlink -f "$0")")"
 
 # Internal functions
@@ -36,24 +36,23 @@ version() {
 }
 
 usage() {
-    _pht "Scrap worldwide events from multiple categories (codes) from rsoe-edis.org."
+    _pht "Scrap worldwide events from rsoe-edis.org"
     _pht
     _pht "Usage: $(basename "$0") [OPTION]"
     _pht
-    _pht "'$(basename "$0")' depends on its directory structure, so just use a symbolic"
-    _pht "link if you want to have it in your PATH, do not move the executable alone."
-    _pht "subdirectories. Do not move the executable. Using a symlink is fine."
+    _pht "'$(basename "$0")' depends on its directory structure, do not manually move the executable"
+    _pht "to your PATH. './$(basename "$0") --setup' will create a symbolic link to your ~/.local/bin."
     _pht
     _pht "  Options:"
     _phi "-g, --get [CODE]          Scrap data for event code to data/CODE.json."
     _phi "-p, --print [CODE]        Print saved data as json for event code."
     _phi "-t, --table [CODE]        Print saved data as table for event code."
     _phi "-l, --list-codes          List codes currently associated to scripts."
-    _phi "-s, --setup               Create scrap scripts for each existing event code."
+    _phi "-s, --setup               Create event scrap scripts and optionally link '$(basename "$0")' to PATH."
     _phi "-u, --update-codes        Fetch current event codes and save them."
-    _phi "-R, --rm-scripts          Remove existing script(s) (clean scripts/ directory)."
+    _phi "-R, --rm-scripts          Remove existing script(s) and optionally remove '$(basename "$0")' from PATH."
     _phi "-C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory)."
-    _phi "-v, --version             Print program version and exit."
+    _phi "-v, --version             Print version."
     _phi "-h, --help                Print this help."
     _pht
     _pht "  Improve me:"
@@ -61,10 +60,10 @@ usage() {
 }
 
 # Main functions
-genscripts() {
+setup() {
     # Generate individual .py files for each "subList" code from rsoe.edis.org.
-    # To get all subList codes, go to the rsoe events list, edit page source, and
-    # find each "subList-" occurrence, they are appended with codes.
+    # To get all subList codes, go to rsoe-edis.org/eventList, edit page source,
+    # and find each "subList-" occurrence, they are followed by available codes.
     # Save codes in cats.txt, with one code per line.
     # Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
     mkdir -p "$WE_DIR"/scripts
@@ -72,8 +71,20 @@ genscripts() {
     while read -r code;
         do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$WE_DIR/scripts/$code.py";
         chmod +x "$WE_DIR/scripts/$code.py";
-        printf "$WE_DIR/scripts/$code.py"; printf '\033[32;1m %s \033[0m\n' "✔" ;
     done < "$WE_DIR"/setup/codes.txt
+    printf "Generating scrap scripts for the following codes…\n"
+    listcodes
+    printf "\n$(ls -1q ${WE_DIR}/scripts/*.py | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
+    # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
+    ! has we && in_path="false"
+    if [ "$in_path" == "false" ]; then
+       printf "\n'$(basename "$0")' is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] " && read -r
+       if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
+           [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+           ln -s "$WE_DIR"/we "$HOME"/.local/bin/we
+           printf "Done. You can now run '$(basename "$0")' from anywhere. \033[32;1m%s\033[0m\n" '✔'
+       fi
+    fi
 }
 
 get() {
@@ -84,7 +95,10 @@ get() {
         export WE_DIR
         mkdir -p "$WE_DIR"/data
         cod=$(echo "$1" | tr [a-z] [A-Z]) 
-        python3 "$WE_DIR"/scripts/"$cod".py
+        python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+        if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available."
+        fi
     fi
 }
 
@@ -112,18 +126,28 @@ getcodes() {
 }
 
 rmscripts() {
-    printf '\033[33;1mWrn:\033[0m %s' "remove $(ls -1q ${WE_DIR}/scripts/*.py | wc -l) scrap scripts? [y/N] " && read -r
+    printf '\033[33;1mWrn:\033[0m %s' "remove $(ls -1q ${WE_DIR}/scripts/*.py 2>/dev/null | wc -l) scrap scripts? [y/N] " && read -r
     if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
         [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-        rm "$WE_DIR"/scripts/*.py
+        rm "$WE_DIR"/scripts/*.py 2>/dev/null
         printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
         printf "Run '$(basename "$0") -s' to regenerate scrap scripts.\n"
+    fi
+    # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
+    has we && in_path="true"
+    if [ "$in_path" == "true" ]; then
+       printf "Also remove '$(basename "$0")' symbolic link from your PATH? [y/N] " && read -r
+       if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
+           [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+           rm "$HOME"/.local/bin/we
+           printf "Done. \033[32;1m%s\033[0m\n" '✔'
+       fi
     fi
 }
 
 cleardata() {
     if [ -z "$1" ]; then
-        printf '\033[33;1mWrn:\033[0m %s' "you are about to permanently delete $(ls -1q ${WE_DIR}/data/*.json | wc -l) previously scraped data file(s). Are you sure? Type YES to confirm. " && read -r
+        printf '\033[33;1mWrn:\033[0m %s' "you are about to permanently delete $(ls -1q ${WE_DIR}/data/*.json 2>/dev/null | wc -l) previously scraped data file(s). Type YES to confirm. " && read -r
         if [ "$REPLY" = "YES" ]; then
            rm "$WE_DIR"/data/*.json
            printf "${WE_DIR}/data/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
@@ -165,7 +189,7 @@ fi
     "-l"|"--list-codes")
         listcodes "$WE_DIR" ; exit ;;
     "-s"|"--setup")
-        genscripts "$WE_DIR" ; exit ;;
+        setup "$WE_DIR" ; exit ;;
     "-u"|"--update-codes")
         updatecodes "$WE_DIR" ; exit ;;
     "-R"|"--rm-scripts")

@@ -20,4 +20,4 @@ if __name__ == "__main__":
     titles = [ x.text.replace('\n', '').strip(' ')  for x in  sreplacemes.findAll("h5", {"class": "title"}) ]
     details = [ x.find("a", href=True)["href"]  for x in  sreplacemes.findAll("td", {"class": "details"}) ]
     print(json.dumps({"Date": replaceme, "Location": locs, "Title": titles, "Details": details}), file=open(wedir+'/data/replaceme.json', 'a'))
-    print('Appended data to '+wedir+'/data/replaceme.json. ✔')
+    print('Appended data to '+wedir+'/data/replaceme.json. \033[32;1m✔\033[0m')
