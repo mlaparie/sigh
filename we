@@ -1,0 +1,183 @@
+#!/bin/bash
+# Utility script to scrap data from rsoe-edis.org.
+# Options allow generating/removing scrap scripts
+# and showing/removing scraped data.
+#
+# Dependencies: jello, jtbl
+# 
+# Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
+
+VERSION=0.2
+WE_DIR="$(dirname "$(readlink -f "$0")")"
+
+# Internal functions
+has() {
+    case "$(command -v "$1" 2>/dev/null)" in
+        alias*|"") return 1
+    esac
+}
+
+_phi() {
+    >&2 printf '    %s\n' "$1"
+}
+
+_pht() {
+    >&2 printf '%s\n' "$@"
+}
+
+_pemx() {
+    >&2 printf '\033[31;1mError:\033[m %s\n' "$1"
+    exit 1
+}
+
+version() {
+    _pht "$(basename "$0") $VERSION"
+    _pht "Working directory: '$WE_DIR'"
+}
+
+usage() {
+    _pht "Scrap worldwide events from multiple categories (codes) from rsoe-edis.org."
+    _pht
+    _pht "Usage: $(basename "$0") [OPTION]"
+    _pht
+    _pht "'$(basename "$0")' depends on its directory structure, so just use a symbolic"
+    _pht "link if you want to have it in your PATH, do not move the executable alone."
+    _pht "subdirectories. Do not move the executable. Using a symlink is fine."
+    _pht
+    _pht "  Options:"
+    _phi "-g, --get [CODE]          Scrap data for event code to data/CODE.json."
+    _phi "-p, --print [CODE]        Print saved data as json for event code."
+    _phi "-t, --table [CODE]        Print saved data as table for event code."
+    _phi "-l, --list-codes          List codes currently associated to scripts."
+    _phi "-s, --setup               Create scrap scripts for each existing event code."
+    _phi "-u, --update-codes        Fetch current event codes and save them."
+    _phi "-R, --rm-scripts          Remove existing script(s) (clean scripts/ directory)."
+    _phi "-C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory)."
+    _phi "-v, --version             Print program version and exit."
+    _phi "-h, --help                Print this help."
+    _pht
+    _pht "  Improve me:"
+    _phi "https://git.teknik.io/matf/worldevents"
+}
+
+# Main functions
+genscripts() {
+    # Generate individual .py files for each "subList" code from rsoe.edis.org.
+    # To get all subList codes, go to the rsoe events list, edit page source, and
+    # find each "subList-" occurrence, they are appended with codes.
+    # Save codes in cats.txt, with one code per line.
+    # Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
+    mkdir -p "$WE_DIR"/scripts
+    cd "$WE_DIR"
+    while read -r code;
+        do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$WE_DIR/scripts/$code.py";
+        chmod +x "$WE_DIR/scripts/$code.py";
+        printf "$WE_DIR/scripts/$code.py"; printf '\033[32;1m %s \033[0m\n' "✔" ;
+    done < "$WE_DIR"/setup/codes.txt
+}
+
+get() {
+    if [ -z "$1" ]; then
+        _pht "Usage: we -g [CODE]"
+        _pht "'$(basename "$0") -l' to list available codes (case insensitive)" ; exit 0
+    else
+        export WE_DIR
+        mkdir -p "$WE_DIR"/data
+        cod=$(echo "$1" | tr [a-z] [A-Z]) 
+        python3 "$WE_DIR"/scripts/"$cod".py
+    fi
+}
+
+print() {
+    cod=$(echo "$1" | tr [a-z] [A-Z]) 
+    cat "$WE_DIR"/data/"$cod".json | jello
+}
+
+table() {
+        cod=$(echo "$1" | tr [a-z] [A-Z]) 
+#cat "$WE_DIR"/data/"$cod".json | jello '\
+#result = []
+#for d, t, x in zip(_.Date, _.Title, _.Details):
+#    result.append({"Date": d, "Title: t, "Details": x})
+#result' | jtbl -n
+        printf "Table output not implemented yet. :("
+}
+
+listcodes() {
+    cat "$WE_DIR"/setup/codes.txt | tr '\n' '\t'
+}
+
+getcodes() {
+    printf "Fetching codes is not implemented yet, sadly. :<"
+}
+
+rmscripts() {
+    printf '\033[33;1mWrn:\033[0m %s' "remove $(ls -1q ${WE_DIR}/scripts/*.py | wc -l) scrap scripts? [y/N] " && read -r
+    if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
+        [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+        rm "$WE_DIR"/scripts/*.py
+        printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
+        printf "Run '$(basename "$0") -s' to regenerate scrap scripts.\n"
+    fi
+}
+
+cleardata() {
+    if [ -z "$1" ]; then
+        printf '\033[33;1mWrn:\033[0m %s' "you are about to permanently delete $(ls -1q ${WE_DIR}/data/*.json | wc -l) previously scraped data file(s). Are you sure? Type YES to confirm. " && read -r
+        if [ "$REPLY" = "YES" ]; then
+           rm "$WE_DIR"/data/*.json
+           printf "${WE_DIR}/data/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
+        fi
+    else
+        cod=$(echo "$1" | tr [a-z] [A-Z])
+        if ! [ -f "${WE_DIR}/data/${cod}.json" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' ""$cod".json was not scraped yet."
+        else
+            printf '\033[33;1mWrn:\033[0m %s' "permanently delete "$cod".json? This cannot be undone. [y/N] " && read -r
+            if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
+                [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+               rm "$WE_DIR"/data/"$cod".json
+               printf "${WE_DIR}/data/"$cod".json removed. \033[32;1m%s\033[0m\n" '✔'
+            fi
+        fi
+    fi
+}
+
+# Dependency check
+for prog in jello jtbl sed; do
+     ! has "$prog" && dependencies_not_installed="${dependencies_not_installed}${prog}, "
+done
+
+[ -n "${dependencies_not_installed}" ] && _pemx "missing dependencies, please install: ${dependencies_not_installed%??}."
+
+# Options
+if [ -z "$1" ]; then
+    usage ; exit 0
+fi
+
+    case "$1" in
+    "-g"|"--get")
+        get "$2" "$WE_DIR" ; exit ;;
+    "-p"|"--print")
+        print "$2" "$WE_DIR" ; exit ;;
+    "-t"|"--table")
+        table "$2" "$WE_DIR" ; exit ;;
+    "-l"|"--list-codes")
+        listcodes "$WE_DIR" ; exit ;;
+    "-s"|"--setup")
+        genscripts "$WE_DIR" ; exit ;;
+    "-u"|"--update-codes")
+        updatecodes "$WE_DIR" ; exit ;;
+    "-R"|"--rm-scripts")
+        rmscripts "$WE_DIR" ; exit ;;
+    "-C"|"--clear-data")
+        cleardata "$2" "$WE_DIR" ; exit ;;
+    "-v"|"--version")
+        version "$WE_DIR" ; exit 0 ;;
+    "-h"|"--help")
+        usage ; exit 0 ;;
+    -*)
+        _pemx "$1 is not a supported option." ;;
+    *)
+        usage ; exit 0 ;;
+esac
