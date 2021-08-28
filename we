@@ -3,12 +3,13 @@
 # Options allow generating/removing scrap scripts
 # and showing/removing scraped data.
 #
-# Dependencies: python3, fzf, jello, jtbl, sed, less
+# Dependencies: python3, fzf, jq, jtbl, sed, less
 # 
 # Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
 VERSION=0.3
 WE_DIR="$(dirname "$(readlink -f "$0")")"
+FZFOPTS=( --height=100% --layout=reverse --cycle --border --marker='*' )
 
 # Internal functions
 has() {
@@ -93,18 +94,22 @@ setup() {
 get() {
     # Scrap data, use fzf if no code provided
     export WE_DIR
+    mkdir -p "$WE_DIR"/data
     if [ -z "$1" ]; then
         nscripts="$(find "$WE_DIR"/scripts/ -type f -printf '%f\n' | wc -l)"
         if [ "$nscripts" -eq "0" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there are no scrap scripts yet, please run '$(basename "$0") --setup' first."
         else
-            cod="$(find "$WE_DIR"/scripts/ -type f -printf '%f\n' | sed s/.py// | sort | fzf)"
-            python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+            cd "$WE_DIR"/scripts
+            cod=( $(find . -type f -printf '%f\n' | sed s/.py// | sort | \
+                fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
+            for i in "${cod[@]}"; do printf 'Scraping %s… ' "$i" && python3 $i.py; done
         fi
     else
-        mkdir -p "$WE_DIR"/data
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+        cd "$WE_DIR"/scripts
+        cod=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+        echo $cod
+        for i in "${cod[@]}"; do printf 'Scraping %s… ' "${cod[i]}" ; python3 $i.py; done
         if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, make sure this code is available in '$(basename "$0") -l' and regenerate scripts with '$(basename "$0") -s'."
         fi
@@ -113,16 +118,23 @@ get() {
 
 fzfcmd() {
     find . -type f -printf '%f\n' | sort | fzf --ansi \
-        --header="[return] print and exit, [^e]dit,  [^b]beautified-edit (kak), table-[^v]iew, [^r]ipgrep" \
-        --preview "$1" \
+        --header=$'Ret  print & exit
+C-e  edit
+C-x  edit beautified
+     dep: kakoune
+C-v  view table/json
+C-r  ripgrep
+     dep: rga-fzf
+?    toggle preview\n\n' \
+        --preview="$1" \
         --preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
         --bind="?:toggle-preview" \
-        --bind="ctrl-r:execute(rga-fzf {})" \
+        --bind="ctrl-r:execute(rga-fzf {} '')" \
         --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} </dev/tty)" \
         --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} </dev/tty)" \
-        --bind="ctrl-v:execute(cat {} | jello | jtbl -n | less -S)"
-
-    }
+        --bind="$2" \
+        --bind="$3"
+}
 
 print() {
     # Show scraped data, use fzf if no code provided
@@ -132,11 +144,11 @@ print() {
         if [ "$ndata" -eq "0" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there are no data files yet, please run '$(basename "$0") --get' first."
         else
-        fzfcmd "cat {} | jello"
+        fzfcmd "cat {} | jq" "enter:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jq | jtbl -t | less -S)"
         fi
     else
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        jello < "$WE_DIR"/data/"$cod".json
+        jq < "$WE_DIR"/data/"$cod".json
     fi
 }
 
@@ -148,11 +160,11 @@ table() {
         if [ "$ndata" -eq "0" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there are no data files yet, please run '$(basename "$0") --get' first."
         else
-        fzfcmd "cat {} | jello | jtbl -t" | xargs cat | jello | jtbl -t
+        fzfcmd "cat {} | jq | jtbl -t" "enter:execute(cat {} | jq | jtbl -t)+abort" "ctrl-v:execute(cat {} | jq | less -S)"
         fi
     else
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        jello < "$WE_DIR"/data/"$cod".json | jtbl -t
+        jq < "$WE_DIR"/data/"$cod".json | jtbl -t
     fi
 }
 
@@ -161,9 +173,9 @@ listcodes() {
     tr '\n' '\t' < "$WE_DIR"/setup/codes.txt | fold -w 80 -s
 }
 
-getcodes() {
+updatecodes() {
     # Fetch currently active codes online
-    printf "Fetching codes is not implemented yet, sadly. :<"
+    printf "Fetching codes is not implemented yet, sadly. :< "
 }
 
 rmscripts() {
@@ -232,7 +244,7 @@ fi
 
     case "$1" in
     "-g"|"--get")
-        get "$2" "$WE_DIR" ; exit ;;
+        get "$@" "$WE_DIR" ; exit ;;
     "-p"|"--print")
         print "$2" "$WE_DIR" ; exit ;;
     "-t"|"--table")

@@ -27,4 +27,4 @@ if __name__ == "__main__":
 
     result = json.dumps(result)
     print(result, file=open(wedir+'/data/replaceme.json', 'a'))
-    print(f'Appended {len(replaceme)} event(s) to {wedir}/data/replaceme.json. \033[32;1m✔\033[0m')
+    print(f' \033[32;1m✔\033[0m Appended {len(replaceme)} event(s) to {wedir}/data/replaceme.json.')
