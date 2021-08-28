@@ -3,7 +3,7 @@
 # Options allow generating/removing scrap scripts
 # and showing/removing scraped data.
 #
-# Dependencies: jello, jtbl, fzf, less, sed
+# Dependencies: python3, fzf, jello, jtbl, sed, less
 # 
 # Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
@@ -31,11 +31,13 @@ _pemx() {
 }
 
 version() {
+    # Print version and working directory
     _pht "$(basename "$0") $VERSION"
     _pht "Working directory: '$WE_DIR'"
 }
 
 usage() {
+    # Show help
     _pht "Scrap worldwide events from rsoe-edis.org"
     _pht
     _pht "Usage: $(basename "$0") [OPTION]"
@@ -47,12 +49,12 @@ usage() {
     _phi "-g, --get [CODE]          Scrap data for event code to data/CODE.json."
     _phi "-p, --print [CODE]        Print saved data as json for event code."
     _phi "-t, --table [CODE]        Print saved data as table for event code."
-    _phi "-l, --list-codes          List codes currently associated to scripts."
+    _phi "-l, --list-codes          List codes currently available to generate scripts."
     _phi "-s, --setup               Create event scrap scripts and optionally link '$(basename "$0")' to PATH."
     _phi "-u, --update-codes        Fetch current event codes and save them."
     _phi "-R, --rm-scripts          Remove existing script(s) and optionally remove '$(basename "$0")' from PATH."
     _phi "-C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory)."
-    _phi "-v, --version             Print version."
+    _phi "-v, --version             Print version and path to working directory."
     _phi "-h, --help                Print this help."
     _pht
     _pht "  Improve me:"
@@ -89,29 +91,49 @@ setup() {
 }
 
 get() {
+    # Scrap data, use fzf if no code provided
     export WE_DIR
     if [ -z "$1" ]; then
-        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
-        python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
-        print "$cod" | jtbl -n | less -S +G
-        if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
+        nscripts="$(find "$WE_DIR"/scripts/ -type f -printf '%f\n' | wc -l)"
+        if [ "$nscripts" -eq "0" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' "there are no scrap scripts yet, please run '$(basename "$0") --setup' first."
+        else
+            cod="$(find "$WE_DIR"/scripts/ -type f -printf '%f\n' | sed s/.py// | sort | fzf)"
+            python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
         fi
     else
         mkdir -p "$WE_DIR"/data
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
-        print "$cod" | jtbl -n | less -S +G
         if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
+            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, make sure this code is available in '$(basename "$0") -l' and regenerate scripts with '$(basename "$0") -s'."
         fi
     fi
 }
 
+fzfcmd() {
+    find . -type f -printf '%f\n' | sort | fzf --ansi \
+        --header="[return] print and exit, [^e]dit,  [^b]beautified-edit (kak), table-[^v]iew, [^r]ipgrep" \
+        --preview "$1" \
+        --preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
+        --bind="?:toggle-preview" \
+        --bind="ctrl-r:execute(rga-fzf {})" \
+        --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} </dev/tty)" \
+        --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} </dev/tty)" \
+        --bind="ctrl-v:execute(cat {} | jello | jtbl -n | less -S)"
+
+    }
+
 print() {
+    # Show scraped data, use fzf if no code provided
+    cd "$WE_DIR"/data || exit
     if [ -z "$1" ]; then
-        cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
-        jello < "$WE_DIR"/data/"$cod".json
+        ndata="$(find . -type f -printf '%f\n' | wc -l)"
+        if [ "$ndata" -eq "0" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' "there are no data files yet, please run '$(basename "$0") --get' first."
+        else
+        fzfcmd "cat {} | jello"
+        fi
     else
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         jello < "$WE_DIR"/data/"$cod".json
@@ -119,18 +141,33 @@ print() {
 }
 
 table() {
-    print "$1" | jtbl -n | less -S
+    # Show scraped data as table, use fzf if no code provided
+    cd "$WE_DIR"/data || exit
+    if [ -z "$1" ]; then
+        ndata="$(find . -type f -printf '%f\n' | wc -l)"
+        if [ "$ndata" -eq "0" ]; then
+            printf '\033[31;1mErr:\033[0m %s\n' "there are no data files yet, please run '$(basename "$0") --get' first."
+        else
+        fzfcmd "cat {} | jello | jtbl -t" | xargs cat | jello | jtbl -t
+        fi
+    else
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+        jello < "$WE_DIR"/data/"$cod".json | jtbl -t
+    fi
 }
 
 listcodes() {
-     tr '\n' '\t' < "$WE_DIR"/setup/codes.txt | fold -w 80 -s
+    # List available codes
+    tr '\n' '\t' < "$WE_DIR"/setup/codes.txt | fold -w 80 -s
 }
 
 getcodes() {
+    # Fetch currently active codes online
     printf "Fetching codes is not implemented yet, sadly. :<"
 }
 
 rmscripts() {
+    # Remove scrap scripts
     printf '\033[33;1mWrn:\033[0m %s' "remove $(find "${WE_DIR}"/scripts/*.py -maxdepth 1 -type f 2>/dev/null | wc -l) scrap scripts? [y/N] " && read -r
     if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
         [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
@@ -152,6 +189,7 @@ rmscripts() {
 }
 
 cleardata() {
+    # Remove data
     if [ -z "$1" ]; then
         printf '\033[33;1mWrn:\033[0m %s' "delete $(find "${WE_DIR}"/data/*json -maxdepth 1 -type f 2>/dev/null | wc -l) previously scraped data file(s)? This cannot be undone. Type YES to confirm. " && read -r
         if [ "$REPLY" = "YES" ]; then
@@ -174,13 +212,14 @@ cleardata() {
 }
 
 interactive() {
-    usage ; exit 0
+    # Use fzf to manipulate program options
+    usage ; exit 0 # Temporary, just to avoid breaking until the option is fully implemented
 #    arg="$(fzf < $(printf "get\nprint\ntable\nlistcodes\nsetup\nupdatecodes\nrm-scripts\nclear-data\nversion\nhelp"))"
 #    we $arg
 }
 
 # Dependency check
-for prog in jello jtbl sed less fzf; do
+for prog in python3 fzf jello jtbl sed less; do
      ! has "$prog" && dependencies_not_installed="${dependencies_not_installed}${prog}, "
 done
 
