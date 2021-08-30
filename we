@@ -9,7 +9,7 @@
 
 VERSION=0.3
 WE_DIR="$(dirname "$(readlink -f "$0")")"
-FZFOPTS=( --height=90% --layout=reverse --cycle --border --marker='*' )
+FZFOPTS=( --height=100% --layout=reverse --cycle --border --marker='*' )
 
 # Internal functions
 has() {
@@ -224,34 +224,62 @@ rm-scripts() {
     # Remove scrap scripts
     cd "$WE_DIR"/scripts 2>/dev/null || exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s first.'"
     if [ -z "$1" ]; then
-        printf '\033[33;1mWrn:\033[0m %s' "remove $(findcmd 2>/dev/null | wc -l) scrap scripts? [y/N] " && read -r
-        if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
-            [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-            rm "$WE_DIR"/scripts/*.py 2>/dev/null
-            printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
-            printf "Run '%s' to regenerate scrap scripts.\n" "$(basename "$0") -s"
-            # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
-            has we && in_path="true"
-            if [ "$in_path" == "true" ]; then
-               printf "\nAlso remove '%s' symbolic link from your PATH? [y/N] " "$(basename "$0")" && read -r
-               if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
-                   [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-                   rm "$HOME"/.local/bin/we
-                   printf "Done. \033[32;1m%s\033[0m\n" '✔'
-               fi
-            fi
+        nscripts="$(findcmd | wc -l)"
+        if [ "$nscripts" -eq "0" ]; then
+           exitonerror "no scrap scripts to delete."
+        else
+            printf '\033[33;1mWrn:\033[0m %s' "[r]emove $(findcmd 2>/dev/null | wc -l) scrap scripts, [c]herry pick, or [a]bort? " && read -r
+            if [ "$REPLY" = "a" ] || [ "$REPLY" = "A" ] || [ "$REPLY" = "" ]; then
+                quit
+            elif [ "$REPLY" = "r" ] || [ "$REPLY" = "R" ]; then
+                # printf 'This cannot be undone. Type YES to confirm. ' && read -r
+                # if [ "$REPLY" = "y" ] || [ "$REPLY" = "y" ] || \
+                #     [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+                rm *.py 2>/dev/null
+                printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
+                # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
+                has we && in_path="true"
+                if [ "$in_path" == "true" ]; then
+                   printf "\nAlso remove '%s' symbolic link from your PATH? [y/N] " "$(basename "$0")" && read -r
+                   if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
+                       [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+                       rm "$HOME"/.local/bin/we
+                       printf "Done. \033[32;1m%s\033[0m\n" '✔'
+                   fi
+                fi
+            elif [ "$REPLY" = "c" ] || [ "$REPLY" = "C" ]; then
+                cod=( $(findcmd | sed s/.py// | \
+                    fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
+                for i in "${cod[@]}"
+                    do rm "$i.py"
+                done
+                printf 'Removed %s scripts. \033[32;1m✔\033[0m\n' "${#cod[@]}"
+                quit
+            fi 
         fi
     else
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        if ! [ -f "${cod}.py" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' "no scrap script for $cod."
+        cod=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+        unset 'cod[0]' ; unset 'cod[-1]'
+        if [ "${#cod[@]}" -eq "0" ]; then
+            rm-scripts
+            quit
+        fi
+        printf '\033[33;1mWrn:\033[0m %s' "remove ${#cod[@]} scrap scripts? [Y/n] " && read -r
+        if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
+            quit
         else
-            printf '\033[33;1mWrn:\033[0m %s' "delete $cod.py? [Y/n] " && read -r
-            if ! [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || \
-                [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
-               rm "$cod".py
-               printf "${WE_DIR}/scripts/$cod.py removed. \033[32;1m%s\033[0m\n" '✔'
-            fi
+            # printf 'This cannot be undone. Type YES to confirm. ' && read -r
+            # if [ "$REPLY" = "y" ] || [ "$REPLY" = "y" ] || \
+            #     [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+            for i in "${cod[@]}"; do
+                if ! [ -f "$i.py" ]; then
+                    printf ' \033[31;1mErr:\033[0m %s\n' "no $i script to delete."
+                else
+                    rm $i.py 2>/dev/null
+                    printf 'Removed %s.py \033[32;1m✔\033[0m\n' "$WE_DIR/scripts/$i"
+                fi
+            done
+            quit
         fi
     fi
 }
@@ -313,7 +341,7 @@ fi
     "-u"|"--update-codes")
         update-codes "$WE_DIR" ; exit ;;
     "-R"|"--rm-scripts")
-        rm-scripts "$2" "$WE_DIR" ; exit ;;
+        rm-scripts "$@" "$WE_DIR" ; exit ;;
     "-C"|"--clear-data")
         clear-data "$2" "$WE_DIR" ; exit ;;
     "-i"|"--interactive")
