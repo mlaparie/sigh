@@ -124,7 +124,7 @@ setup() {
 get() {
     # Scrap data, use fzf if no code provided
     export WE_DIR
-    cd "$WE_DIR"/scripts 2>/dev/null || exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s first.'"
+    cd "$WE_DIR"/setup 2>/dev/null || exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s first.'"
     mkdir -p "$WE_DIR"/data
     if [ -z "$1" ]; then
         nscripts="$(findcmd | wc -l)"
@@ -134,7 +134,7 @@ get() {
             cod=( $(findcmd | sed s/.py// | \
                 fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
             for i in "${cod[@]}"
-                do printf 'Scraping %s… ' "$i" && python3 $i.py
+                do printf 'Scraping %s… ' "$i" && python3 getevents.py -s "$i"
             done
             quit
         fi
@@ -146,10 +146,7 @@ get() {
         fi
         for i in "${cod[@]}"
             do printf 'Scraping %s… ' "$i"
-            python3 "$i".py 2>/dev/null
-            if ! [ -f "$i.py" ]; then
-                printf ' \033[31;1mErr:\033[0m %s\n' "no scrap script for $i yet. Make sure this code is available in '$(basename "$0") -l' and regenerate scripts with '$(basename "$0") -s'."
-            fi
+            python3 getevents.py -s "$i" 2>/dev/null
         done
     fi
 }
@@ -212,8 +209,9 @@ list-codes() {
 }
 
 update-codes() {
-    # Fetch currently active codes online
-    printf "Fetching codes is not implemented yet, sadly. :<\n"
+    export WE_DIR
+    printf 'Fetching current categories… '
+    python3 "$WE_DIR"/setup/getnewcodes.py
 }
 
 exitonerror() {
