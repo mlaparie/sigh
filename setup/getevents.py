@@ -8,7 +8,6 @@ import requests
 import json
 from bs4 import BeautifulSoup
 import argparse
-import time
 
 
 wedir = os.environ["WE_DIR"]
@@ -72,12 +71,11 @@ try:
     html = scrape_html("https://rsoe-edis.org/eventList")
     eventCards = get_event_cards(html, eventsList)
 
-
     for card in eventCards:
         print(json.dumps(get_fields_from_event_card(card)), file=open(wedir+'/data/'+sublistToSearch+'.json', 'a'))
 
-
+    print(f'{len(eventCards)} ' f'{sublistToSearch} event(s)… ', end='')
     print(f'\033[32;1m✔\033[0m Appended {len(eventCards)} event(s) to {wedir}/data/{sublistToSearch}.json.')
-    
+
 except Exception as e:
     print(f'\033[31;1m⨉\033[0m No {sublistToSearch} events to scrap at the moment.', e)
