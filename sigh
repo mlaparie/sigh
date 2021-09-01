@@ -286,7 +286,7 @@ remove-data() {
 interactive() {
     # Use fzf to manipulate program options
     cmd=$(echo "get print table list-types setup update-types remove-data version show-help quit" \
-    | tr ' ' '\n' | fzf "${FZFOPTS[@]}"i --preview="cat {} | xargs | $hlp")
+    | tr ' ' '\n' | fzf "${FZFOPTS[@]}")
     eval "$cmd"
 }
 
