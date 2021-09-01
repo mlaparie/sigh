@@ -136,11 +136,19 @@ get() {
     else
         if [ "$2" == "ALL" ] || [ "$2" == "all" ]; then
              ALL=( $(tr '\n' ' ' < types.txt | xargs) )
-                printf '\033[33;1mWrn:\033[0m Please do not abuse this option so that rsoe-edis.org do not set countermeasures against scraping.\n'
-                printf 'Scraping all events, time to brew yourself a coffee…\n'
-                for i in "${ALL[@]}"
-                do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
-            done
+                printf '\033[33;1mWrn:\033[0m Please do not abuse this option so that rsoe-edis.org do not set countermeasures against scraping. Type "I promise." to proceed. ' && read -r
+                if [ "$REPLY" = "I promise." ]; then
+                    start=`date +%s`
+                    printf '\nScraping all events, time to brew yourself a coffee…\n'
+                    for i in "${ALL[@]}"
+                    do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
+                    done
+                    end=`date +%s`
+                    runtime=$((end-start))
+                    printf 'Finished job (%s)\n' "$runtime"
+                else
+                    quit
+                fi
         else
             typ=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
             unset 'typ[0]' ; unset 'typ[-1]'
@@ -314,7 +322,7 @@ fi
     "-p"|"--print")
         print "$@" "$WE_DIR" ; exit ;;
     "-t"|"--table")
-        table "$2" "$WE_DIR" ; exit ;;
+        table "$@" "$WE_DIR" ; exit ;;
     "-l"|"--list-types")
         list-types "$WE_DIR" ; exit ;;
     "-s"|"--setup")
