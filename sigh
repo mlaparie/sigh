@@ -145,7 +145,7 @@ get() {
                     done
                     end=`date +%s`
                     runtime=$((end-start))
-                    printf 'Finished job (%s)\n' "$runtime"
+                    printf 'Finished scraping all events in %s s.\n' "$runtime"
                 else
                     quit
                 fi
