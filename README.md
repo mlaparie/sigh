@@ -1,6 +1,8 @@
-# `sigh`, a program for the optimistics
+# `sigh`, a program to cure optimism
 
-`sigh` is a simple program made to scrape, save and print information about disaster events around the world listed on [rsoe-edis.org](https://rsoe-edis.org/eventList). It is meant to be used both with `fzf` submenus or directly from command line with flags and arguments.
+`sigh` is a simple program made to scrape, save and print information about disaster events around the world listed on [rsoe-edis.org](https://rsoe-edis.org/eventList). Epidemics, floods, heatwaves, earthquakes, cyclones, plane crashes, zoonoses, you name it, enough to definitely cure all your optimism.
+
+`sigh` is meant to be used both with `fzf` submenus or directly from command line with flags and arguments.
 
 <p align="center">
   <img width="800" src="https://gist.github.com/Kabouik/ff6a41498fe4dc63488d2126c8ed8e2b/raw/5852fbe7e96fbbde82586a88888169054171ffd9/we.svg">

@@ -11,7 +11,7 @@ import argparse
 
 
 wedir = os.environ["WE_DIR"]
-sublistToSearch = None
+typeToSearch = None
 
 
 def scrape_html(url):
@@ -21,15 +21,16 @@ def scrape_html(url):
 
 
 def get_event_cards(soup, eventsList):
-    global sublistToSearch
-    sublistToSearch = get_sublist_from_args(eventsList)
-    eventCards = soup.find(id="sub-{threeLetterCode}".format(threeLetterCode=sublistToSearch))
+    global typeToSearch
+    typeToSearch = get_type_from_args(eventsList)
+    eventCards = soup.find(id="sub-{threeLetterCode}".format(threeLetterCode=typeToSearch))
     eventCards = eventCards.find_all("div", {"class": "event-card"})
+    #print(f'{len(eventCards)} ' f'{typeToSearch} event(s)… ', end='')
     return eventCards
 
 
 def get_fields_from_event_card(card):
-    fieldsToFind = ["title", "time", "location", "details"]
+    fieldsToFind = ["time", "title", "location", "details"]
     fieldData = {}
     for f in fieldsToFind:
         if f == "details":
@@ -44,25 +45,27 @@ def get_fields_from_event_card(card):
 
 def get_additional_detail(detailUrl):
     soup = scrape_html(detailUrl)
-    fieldsToFind = ["latitude", "longitude", "source", "category"]
+    fieldsToFind = ["source", "category", "latitude", "longitude", "description"]
     fieldData = {}
     for f in fieldsToFind:
         if f == "source":
             fieldData[f] = soup.find(class_="part-bigger").find("a", href=True)["href"]
         elif f == "category":
             fieldData[f] = soup.find(class_="category-text").text.strip()
+        elif f == "description":
+            fieldData[f] = soup.find(class_="event-description").text.strip()
         else:
             fieldData[f] = soup.find(id=f).text.strip()
     return fieldData
 
 
-def get_sublist_from_args(eventsList):
+def get_type_from_args(eventsList):
     parser = argparse.ArgumentParser(description='Scrape events data from rsoe-edis.org')
-    parser.add_argument("-s", required=True, dest="sublist", choices=eventsList, help="get events for queried subcategory")
-    return parser.parse_args().sublist
+    parser.add_argument("-t,", "--type", required=False, dest="type", help="get events for queried type (three-letter code)")
+    return parser.parse_args().type
 
 
-with open(wedir+'/setup/subcategories.txt', 'r') as f:
+with open(wedir+'/setup/types.txt', 'r') as f:
     eventsList = f.readlines()
     eventsList = [line.strip() for line in eventsList]
 
@@ -72,10 +75,9 @@ try:
     eventCards = get_event_cards(html, eventsList)
 
     for card in eventCards:
-        print(json.dumps(get_fields_from_event_card(card)), file=open(wedir+'/data/'+sublistToSearch+'.json', 'a'))
+        print(json.dumps(get_fields_from_event_card(card)), file=open(wedir+'/data/'+typeToSearch+'.json', 'a'))
 
-    print(f'{len(eventCards)} ' f'{sublistToSearch} event(s)… ', end='')
-    print(f'\033[32;1m✔\033[0m Appended {len(eventCards)} event(s) to {wedir}/data/{sublistToSearch}.json.')
+    print(f'\033[32;1m✔\033[0m {len(eventCards)} added to {wedir}/data/{typeToSearch}.json.')
 
 except Exception as e:
-    print(f'\033[31;1m⨉\033[0m No {sublistToSearch} events to scrap at the moment.', e)
+    print(f'\033[31;1m𐄂\033[0m 0 active at the moment.')
