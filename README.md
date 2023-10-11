@@ -10,6 +10,12 @@
   <img width="800" src="https://gist.github.com/Kabouik/ff6a41498fe4dc63488d2126c8ed8e2b/raw/5852fbe7e96fbbde82586a88888169054171ffd9/we.svg">
 </p>
 
+---
+
+# This README is outdated and is to be rewritten.
+
+---
+
 ## Installation
 #### Dependencies
 - `bs4`
