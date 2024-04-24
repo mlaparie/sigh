@@ -93,6 +93,7 @@ get() {
     if [ -z "$1" ]; then
         cod="$(fzf < "$WE_DIR"/setup/codes.txt)"
         python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+        print "$cod" | jtbl -n | less -S +G
         if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
         fi
@@ -100,6 +101,7 @@ get() {
         mkdir -p "$WE_DIR"/data
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
+        print "$cod" | jtbl -n | less -S +G
         if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
             printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
         fi
