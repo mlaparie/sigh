@@ -214,7 +214,7 @@ list-codes() {
 update-codes() {
     export WE_DIR
     printf 'Fetching current categories… '
-    python3 "$WE_DIR"/setup/getnewcodes.py
+    python3 "$WE_DIR"/setup/getnewsubcategories.py
 }
 
 exitonerror() {
