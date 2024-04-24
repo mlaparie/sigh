@@ -25,7 +25,8 @@ You may re-generate the `.py` scripts using `we --setup` every time `setup/codes
 Automatically updating codes is not supported yet.
 
 ## Usage
-```
+
+```plain
 $ we
 Scrap worldwide events from multiple categories (codes) from rsoe-edis.org.
 
@@ -57,10 +58,9 @@ $ we --list-codes
 AAT	EPA	EPD	EPH	INH	HEC	LSC	PSI	SDM	TER	EVP	PPP	IND	SUE	IBE	OUD	ERQ	LSL	VOE	FLD	CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT	EXR	HAI	HEW	LIT	PTF	SEW	STO
 
 $ we --get epa
-Appended data to /home/user/Projects/worldevents/data/FLD.json. ✔
+Appended data to /home/user/Projects/worldevents/data/EPA.json. ✔
 
-$ we --print fld
-user@debian-sid ~  $ we -p EPA
+$ we --print epa
 {
   "Date": [
     "2021-08-25 20:28:42",
@@ -83,11 +83,12 @@ user@debian-sid ~  $ we -p EPA
     "https://rsoe-edis.org/eventList/details/111325/0"
   ]
 }
-
+```
+```bash
 ###
 # Not implemented yet
 ###
-$ we -t epa
+$ we --table epa
 Date                 Title                                                                        Details
 -------------------  ---------------------------------------------------------------------------  ------------------------------------------------
 2021-08-25 20:28:42  Benin - Benin confirms H5N1 avian flu outbreak                               https://rsoe-edis.org/eventList/details/111380/0
@@ -98,15 +99,15 @@ Date                 Title                                                      
 #### Clear existing data
 
 ```bash
-$ we -C air                                                                                  5 changed files  master 
+$ we --clear-data air
 Wrn: permanently delete AIR.json? This cannot be undone. [y/N] y
 /home/user/Projects/worldevents/data/AIR.json removed. ✔
 
-$ we -C
+$ we --clear-data
 Wrn: you are about to permanently delete 8 previously scraped data file(s). Are you sure? Type YES to confirm. YES
 /home/user/Projects/worldevents/data/ directory cleaned. ✔
 
-$ we -R
+$ we --rm-scripts
 Wrn: remove 37 scrap scripts? [y/N] y
 /home/user/Projects/worldevents/scripts/ directory cleaned. ✔
 Run 'we -s' to regenerate scrap scripts.
