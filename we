@@ -100,14 +100,14 @@ setup() {
     # Save codes in cats.txt, with one code per line.
     # Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
     mkdir -p "$WE_DIR"/scripts
-    cd "$WE_DIR" || exit
+    cd "$WE_DIR"/scripts || exit
     while read -r code;
-        do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$WE_DIR/scripts/$code.py";
-        chmod +x "$WE_DIR/scripts/$code.py";
+        do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$code.py";
+        chmod +x "$code.py";
     done < "$WE_DIR"/setup/codes.txt
     printf "Generating scrap scripts for the following codes…\n"
     list-codes
-    printf "\n$(find "${WE_DIR}"/scripts/*.py -maxdepth 1 -type f 2>/dev/null | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
+    printf "$(findcmd | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
     
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
     ! has we && in_path="false"
@@ -163,7 +163,7 @@ print() {
             exitonerror "no data scraped yet. Run '$(basename "$0") -g' first."
         else
             cod=( $(findcmd | \
-            fzfcmd "cat {} | jq" "ctrl-p:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jq | jtbl -t | less -SN)" "--multi") )
+            fzfcmd "cat {} | jq" "ctrl-p:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jq | jtbl -n | less -SN)" "--multi" < /dev/tty > /dev/tty) )
             for i in "${cod[@]}"
                 do printf '\n%s\n--------\n' "$i"
                 jq < "$i"
