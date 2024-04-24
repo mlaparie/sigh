@@ -7,7 +7,7 @@
 # 
 # Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
-VERSION=0.3
+VERSION=0.4
 WE_DIR="$(dirname "$(readlink -f "$0")")"
 FZFOPTS=( --height=100% --layout=reverse --cycle --border --marker='*' )
 
@@ -29,6 +29,10 @@ _pht() {
 _pemx() {
     >&2 printf '\033[31;1mError:\033[m %s\n' "$1"
     exit 1
+}
+
+exitonerror() {
+    printf '\033[31;1mErr:\033[0m %s\n' "$1" && exit
 }
 
 findcmd() {
@@ -57,253 +61,223 @@ C-r  ripgrep
         "$4"
 }
  
-version() {
-    # Print version and working directory
-    _pht "$(basename "$0") $VERSION"
-    _pht "Working directory: '$WE_DIR'"
-}
-
 quit() {
     exit 0
 }
 
+# Main functions
 show-help() {
     # Show help
-    _pht "Scrap worldwide events from rsoe-edis.org"
+    _pht "sigh, a program to cure optimism. Scrape world disaster events of any type from rsoe-edis.org."
     _pht
     _pht "Usage: $(basename "$0") [OPTION]"
-    _pht
-    _pht "'$(basename "$0")' depends on its directory structure, do not manually move the executable"
-    _pht "to your PATH. './$(basename "$0") --setup' will offer to make a symbolic link in ~/.local/bin/."
+    _pht "       Runs in interactive mode if [OPTION] is not supplied."
     _pht
     _pht "  Options:"
-    _phi "-g, --get [CODE]          Scrap data for event code to data/CODE.json."
-    _phi "-p, --print [CODE]        Print saved data as json for event code."
-    _phi "-t, --table [CODE]        Print saved data as table for event code."
-    _phi "-l, --list-codes          List codes currently available to generate scripts."
-    _phi "-s, --setup               Create event scrap scripts and optionally link '$(basename "$0")' to PATH."
-    _phi "-u, --update-codes        Fetch current event codes and save them."
-    _phi "-R, --rm-scripts          Remove existing script(s) and optionally remove '$(basename "$0")' from PATH."
-    _phi "-C, --clear-data ([CODE]) Remove queried data or all data files (clean data/ directory)."
-    _phi "-v, --version             Print version and path to working directory."
-    _phi "-h, --help                Print this help."
+    _phi "-g, --get ([TYPE1] [TYPE2] […])          Scrape data for event type(s) to data/TYPE.json."
+    _phi "-p, --print ([TYPE1] [TYPE2] […])        Print saved json data for queried event type(s)."
+    _phi "-t, --table ([TYPE1] [TYPE2] […])        Print saved data as table for queried event type(s)."
+    _phi "-l, --list-types                         List event types currently known to $(basename "$0")."
+    _phi "-u, --update-types                       Upgrade list of available event types."
+    _phi "-R, --remove-data ([TYPE1] [TYPE2] […])  Remove queried data types or all data (confirmation required)."
+    _phi "-s, --setup                              Toggle $(basename "$0") symlink in PATH and prompt for --update-types."
+    _phi "-v, --version                            Print version and full path to working directory."
+    _phi "-h, --help                               Print this help."
     _pht
     _pht "  Improve me:"
-    _phi "https://git.teknik.io/matf/worldevents"
+    _phi "https://git.teknik.io/matf/sigh"
+    _pht
+    _pht "$(basename "$0") depends on its base directory structure. Do not manually move the executable to your PATH."
+    _pht "Use ./$(basename "$0") --setup to create/delete a symbolic link in ~/.local/bin/ instead."
+    _pht
 }
 
-# Main functions
 setup() {
-    # Generate individual .py files for each "subList" code from rsoe.edis.org.
-    # To get all subList codes, go to rsoe-edis.org/eventList, edit page source,
-    # and find each "subList-" occurrence, they are followed by available codes.
-    # Save codes in cats.txt, with one code per line.
-    # Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
-    mkdir -p "$WE_DIR"/scripts
-    cd "$WE_DIR"/scripts || exit
-    while read -r code;
-        do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$code.py";
-        chmod +x "$code.py";
-    done < "$WE_DIR"/setup/codes.txt
-    printf "Generating scrap scripts for the following codes…\n"
-    list-codes
-    printf "$(findcmd | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
-    
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
+    cd "$WE_DIR"/setup 2>/dev/null || exitonerror "setup/ subdirectory not found. Was sigh moved out of its base folder?"
     ! has sigh && in_path="false"
     if [ "$in_path" == "false" ]; then
-       printf "\n'%s' is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] " "$(basename "$0")" && read -r
+       printf '%s is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] ' "$(basename "$0")" && read -r
        if ! [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || \
            [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
            ln -s "$WE_DIR"/sigh "$HOME"/.local/bin/sigh
-           printf "Done. \033[32;1m%s\033[0m You can now run '$(basename "$0")' from anywhere.\n" '✔'
+           printf 'Done. \033[32;1m✔\033[0m\n'
        fi
-    fi
+    else
+       printf "Remove %s symbolic link from your PATH? [y/N] " "$(basename "$0")" && read -r
+       if [ "$REPLY" = "y" ] || [ "$REPLY" = "y" ] || \
+           [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+           rm "$HOME"/.local/bin/sigh
+           printf 'Done. \033[32;1m✔\033[0m\n'
+       fi
+   fi
+   
+    # Merge base type list with currently active types to grow the local list, prompt for symlink creation/deletion
+       printf '\nUpgrade the list of event types available to scrape? [Y/n] ' && read -r
+       if ! [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || \
+           [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
+           update-types
+           printf '\nThe %s event types below can be selected from the interface or used directly as arguments:\n' "$(wc -w < types.txt)"
+           list-types
+       fi
 }
 
 get() {
-    # Scrap data, use fzf if no code provided
+    # Scrape data, use fzf if no type(s) provided
     export WE_DIR
-    cd "$WE_DIR"/setup 2>/dev/null || exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s first.'"
+    cd "$WE_DIR"/setup 2>/dev/null || exitonerror "setup/ subdirectory not found. Was 'sigh' moved out of its base folder?"
     mkdir -p "$WE_DIR"/data
     if [ -z "$1" ]; then
-        nscripts="$(findcmd | wc -l)"
-        if [ "$nscripts" -eq "0" ]; then
-            exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s' first."
-        else
-            cod=( $(cat subcategories.txt | \
-                fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
-            for i in "${cod[@]}"
-                do printf 'Scraping ' && python3 getevents.py -s "$i"
-            done
-            quit
-        fi
-    else
-        cod=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )         
-        unset 'cod[0]' ; unset 'cod[-1]'
-        if [ "${#cod[@]}" -eq "0" ]; then
-            get
-        fi
-        for i in "${cod[@]}"
-            do printf 'Scraping '
-            python3 getevents.py -s "$i" 2>/dev/null
-            if ! [ -f "$i.py" ]; then
-                printf ' \033[31;1mErr:\033[0m %s\n' "no scrap script for $i yet. Make sure this code is available in '$(basename "$0") -l' and regenerate scripts with '$(basename "$0") -s'."
-            fi
+        typ=( $(fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' < types.txt | xargs) )
+        for i in "${typ[@]}"
+            do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
         done
+        quit
+    else
+        if [ "$2" == "ALL" ] || [ "$2" == "all" ]; then
+             ALL=( $(tr '\n' ' ' < types.txt | xargs) )
+                printf '\033[33;1mWrn:\033[0m Please do not abuse this option so that rsoe-edis.org do not set countermeasures against scraping.\n'
+                printf 'Scraping all events, time to brew yourself a coffee…\n'
+                for i in "${ALL[@]}"
+                do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
+            done
+        else
+            typ=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+            unset 'typ[0]' ; unset 'typ[-1]'
+            if [ "${#typ[@]}" -eq "0" ]; then
+                get
+            fi
+            for i in "${typ[@]}"
+                do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
+            done
+        fi
     fi
 }
 
 print() {
-    # Show scraped data, use fzf if no code provided
-    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run '$(basename "$0") -g first.'"
+    # Show scraped data as json, use fzf if no type provided
+    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run $(basename "$0") -g first."
     if [ -z "$1" ]; then
         ndata="$(findcmd | wc -l)"
         if [ "$ndata" -eq "0" ]; then
-            exitonerror "no data scraped yet. Run '$(basename "$0") -g' first."
+            exitonerror "no data scraped yet. Run $(basename "$0") -g first."
         else
-            cod=( $(findcmd | \
-            fzfcmd "cat {} | jq" "ctrl-p:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jq | jtbl -n | less -SN)" "--multi" < /dev/tty > /dev/tty) )
-            for i in "${cod[@]}"
+            typ=( $(fzfcmd "cat {} | jq" "ctrl-p:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jtbl -n | less -SN)" "--multi" < /dev/tty > /dev/tty) )
+            for i in "${typ[@]}"
                 do printf '\n%s\n--------\n' "$i"
-                jq < "$i"
+                cat "$i"
             done
             quit
-#        fzfcmd "cat {} | jq" "enter:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jq | jtbl -t | less -S)"
-#--multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
         fi
     else
-        cod=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
-        unset 'cod[0]' ; unset 'cod[-1]'
-        if [ "${#cod[@]}" -eq "0" ]; then
+        typ=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+        unset 'typ[0]' ; unset 'typ[-1]'
+        if [ "${#typ[@]}" -eq "0" ]; then
             print
         fi
-        for i in "${cod[@]}"
+        for i in "${typ[@]}"
             do printf '\n%s\n--------\n' "$i.json"
-            cat "$i".json 2>/dev/null | jq
+               jq < "$i".json 2>/dev/null
             if ! [ -f "$i.json" ]; then
-                printf ' \033[31;1mErr:\033[0m %s\n' "no data scraped for $i yet. Run '$(basename "$0") -g $i' first."
+               printf ' \033[31;1mErr:\033[0m %s\n' "no data scraped for $i yet. Run $(basename "$0") -g $i first."
             fi
         done
     fi
 }
 
 table() {
-    # Show scraped data as table, use fzf if no code provided
-    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run '$(basename "$0") -g first.'"
+    # Show scraped data as table, use fzf if no type provided
+    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run $(basename "$0") -g first."
     if [ -z "$1" ]; then
         ndata="$(findcmd | wc -l)"
         if [ "$ndata" -eq "0" ]; then
-            exitonerror "no data scraped yet. Run '$(basename "$0") --get' first."
+            exitonerror "no data scraped yet. Run $(basename "$0") -g' first."
         else
-        findcmd | \
-            fzfcmd "cat {} | jq | jtbl -t" "ctrl-p:execute(cat {} | jq | jtbl -t)+abort" "ctrl-v:execute(cat {} | jq | less -SN)" "--multi"
+            typ=( $(fzfcmd "cat {} | jtbl -t | less -SN" "ctrl-p:execute(cat {} | jtbl -t)+abort" "ctrl-v:execute(cat {} | jq | less -SN)" "--multi" < /dev/tty > /dev/tty) )
+            for i in "${typ[@]}"
+                do printf '\n%s\n--------\n' "$i"
+                cat "$i"
+            done
+            quit
         fi
     else
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        jq < "$WE_DIR"/data/"$cod".json | jtbl -t
+        typ=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+        unset 'typ[0]' ; unset 'typ[-1]'
+        if [ "${#typ[@]}" -eq "0" ]; then
+            table
+        fi
+        for i in "${typ[@]}"
+            do printf '\n%s\n--------\n' "$i.json"
+               jtbl -t < "$i".json 2>/dev/null
+            if ! [ -f "$i.json" ]; then
+               printf ' \033[31;1mErr:\033[0m %s\n' "no data scraped for $i yet. Run $(basename "$0") -g $i first."
+            fi
+        done
     fi
 }
 
-list-codes() {
-    # List available codes
-    tr '\n' '\t' < "$WE_DIR"/setup/codes.txt | fold -w 80 -s
+list-types() {
+    # List available types
+    tr '\n' '\t' < "$WE_DIR"/setup/types.txt | fold -w 80 -s
     printf "\n"
 }
 
-update-codes() {
+update-types() {
     export WE_DIR
-    printf 'Fetching current categories… '
-    python3 "$WE_DIR"/setup/getnewsubcategories.py
+    printf 'Fetching current types… '
+    python3 "$WE_DIR"/setup/getnewtypes.py
 }
 
-exitonerror() {
-    printf '\033[31;1mErr:\033[0m %s\n %s' "$1" && exit
-}
-
-rm-scripts() {
+remove-data() {
     # Remove scrap scripts
-    cd "$WE_DIR"/scripts 2>/dev/null || exitonerror "no scrap scripts generated yet. Run '$(basename "$0") -s first.'"
+    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run $(basename "$0") -g first."
     if [ -z "$1" ]; then
-        nscripts="$(findcmd | wc -l)"
-        if [ "$nscripts" -eq "0" ]; then
-           exitonerror "no scrap scripts to delete."
+        ndata="$(findcmd | wc -l)"
+        if [ "$ndata" -eq "0" ]; then
+           exitonerror "nothing to delete."
         else
-            printf '\033[33;1mWrn:\033[0m %s' "[r]emove $(findcmd 2>/dev/null | wc -l) scrap scripts, [c]herry pick, or [a]bort? " && read -r
+            printf '\033[33;1mWrn:\033[0m %s' "[r]emove $(findcmd 2>/dev/null | wc -l) data files, [c]herry pick, or [a]bort? " && read -r
             if [ "$REPLY" = "a" ] || [ "$REPLY" = "A" ] || [ "$REPLY" = "" ]; then
-                quit
+                printf 'Aborted.'
             elif [ "$REPLY" = "r" ] || [ "$REPLY" = "R" ]; then
-                # printf 'This cannot be undone. Type YES to confirm. ' && read -r
-                # if [ "$REPLY" = "y" ] || [ "$REPLY" = "y" ] || \
-                #     [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-                rm *.py 2>/dev/null
-                printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
-                # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
-                has sigh && in_path="true"
-                if [ "$in_path" == "true" ]; then
-                   printf "\nAlso remove '%s' symbolic link from your PATH? [y/N] " "$(basename "$0")" && read -r
-                   if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
-                       [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-                       rm "$HOME"/.local/bin/sigh
-                       printf "Done. \033[32;1m%s\033[0m\n" '✔'
-                   fi
+                printf 'This action cannot be undone and data will be lost. Type YES to confirm. ' && read -r
+                if [ "$REPLY" = "YES" ]; then
+                    find . -type f -name '*.json' -delete 2>/dev/null
+                    printf '\033[32;1m✔\033[0m %s/data/ directory cleaned.\n' "${WE_DIR}"
+                else
+                    printf 'Aborted.'
                 fi
             elif [ "$REPLY" = "c" ] || [ "$REPLY" = "C" ]; then
-                cod=( $(findcmd | sed s/.py// | \
-                    fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
-                for i in "${cod[@]}"
-                    do rm "$i.py"
+                typ=( $(findcmd | fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
+                for i in "${typ[@]}"
+                    do rm "$i"
                 done
-                printf 'Removed %s scripts. \033[32;1m✔\033[0m\n' "${#cod[@]}"
+                printf 'Removed %s data filess. \033[32;1m✔\033[0m\n' "${#typ[@]}"
                 quit
             fi 
         fi
     else
-        cod=( $(echo "$@" | tr '[:losighr:]' '[:upper:]' | xargs) )
-        unset 'cod[0]' ; unset 'cod[-1]'
-        if [ "${#cod[@]}" -eq "0" ]; then
-            rm-scripts
+        typ=( $(echo "$@" | tr '[:lower:]' '[:upper:]' | xargs) )
+        unset 'typ[0]' ; unset 'typ[-1]'
+        if [ "${#typ[@]}" -eq "0" ]; then
+            remove-data
             quit
         fi
-        printf '\033[33;1mWrn:\033[0m %s' "remove ${#cod[@]} scrap scripts? [Y/n] " && read -r
+        printf '\033[33;1mWrn:\033[0m %s' "remove ${#typ[@]} data files? This action cannot be undone and data will be lost. [Y/n] " && read -r
         if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
             quit
         else
-            # printf 'This cannot be undone. Type YES to confirm. ' && read -r
-            # if [ "$REPLY" = "y" ] || [ "$REPLY" = "y" ] || \
-            #     [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-            for i in "${cod[@]}"; do
-                if ! [ -f "$i.py" ]; then
-                    printf ' \033[31;1mErr:\033[0m %s\n' "no $i script to delete."
-                else
-                    rm $i.py 2>/dev/null
-                    printf 'Removed %s.py \033[32;1m✔\033[0m\n' "$WE_DIR/scripts/$i"
-                fi
-            done
-            quit
-        fi
-    fi
-}
-
-clear-data() {
-    # Remove data
-    cd "$WE_DIR"/data 2>/dev/null || exitonerror "no data scraped yet. Run '$(basename "$0") -g first.'"
-    if [ -z "$1" ]; then
-        printf '\033[33;1mWrn:\033[0m %s' "delete $(findcmd 2>/dev/null | wc -l) previously scraped data file(s)? This cannot be undone. Type YES to confirm. " && read -r
-        if [ "$REPLY" = "YES" ]; then
-           rm "$WE_DIR"/data/*.json
-           printf "${WE_DIR}/data/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
-        fi
-    else
-        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-        if ! [ -f "${cod}.json" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' "$cod.json was not scraped yet."
-        else
-            printf '\033[33;1mWrn:\033[0m %s' "delete $cod.json? This cannot be undone. [y/N] " && read -r
-            if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
-                [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
-               rm "$cod".json
-               printf "${WE_DIR}/data/$cod.json removed. \033[32;1m%s\033[0m\n" '✔'
+            printf 'This cannot be undone. Type YES to confirm. ' && read -r
+            if [ "$REPLY" = "YES" ]; then
+                for i in "${typ[@]}"; do
+                    if ! [ -f "$i" ]; then
+                        printf ' \033[31;1mErr:\033[0m %s\n' "no $i data to delete."
+                    else
+                        rm "$i" 2>/dev/null
+                        printf 'Removed %s.data \033[32;1m✔\033[0m\n' "$i"
+                    fi
+                done
+                quit
             fi
         fi
     fi
@@ -311,9 +285,15 @@ clear-data() {
 
 interactive() {
     # Use fzf to manipulate program options
-    cmd=$(echo "get print table list-codes setup update-codes rm-scripts clear-data version show-help quit" \
-    | tr ' ' '\n' | fzf "${FZFOPTS[@]}")
-    eval $cmd
+    cmd=$(echo "get print table list-types setup update-types remove-data version show-help quit" \
+    | tr ' ' '\n' | fzf "${FZFOPTS[@]}"i --preview="cat {} | xargs | $hlp")
+    eval "$cmd"
+}
+
+version() {
+    # Print version and working directory
+    _pht "$(basename "$0") $VERSION"
+    _pht "Working directory: $WE_DIR/"
 }
 
 # Dependency check
@@ -335,16 +315,14 @@ fi
         print "$@" "$WE_DIR" ; exit ;;
     "-t"|"--table")
         table "$2" "$WE_DIR" ; exit ;;
-    "-l"|"--list-codes")
-        list-codes "$WE_DIR" ; exit ;;
+    "-l"|"--list-types")
+        list-types "$WE_DIR" ; exit ;;
     "-s"|"--setup")
         setup "$WE_DIR" ; exit ;;
-    "-u"|"--update-codes")
-        update-codes "$WE_DIR" ; exit ;;
-    "-R"|"--rm-scripts")
-        rm-scripts "$@" "$WE_DIR" ; exit ;;
-    "-C"|"--clear-data")
-        clear-data "$2" "$WE_DIR" ; exit ;;
+    "-u"|"--update-types")
+        update-types "$WE_DIR" ; exit ;;
+    "-R"|"--remove-data")
+        remove-data "$@" "$WE_DIR" ; exit ;;
     "-i"|"--interactive")
         interactive "$WE_DIR" ; exit ;;
     "-v"|"--version")
