@@ -1,6 +1,6 @@
 # worldevents (`we`)
 
-Script to scrap, save and print event data from rsoe-edis.org, per event category.
+Script to scrap, save and print event data from [rsoe-edis](rsoe-edis.org), per event category.
 
 ## Installation
 #### Dependencies
