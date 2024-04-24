@@ -67,18 +67,18 @@ setup() {
     # Save codes in cats.txt, with one code per line.
     # Can be done easily with kakoune and `%ssubList-w<ret>y%<a-d><a-p>`.
     mkdir -p "$WE_DIR"/scripts
-    cd "$WE_DIR"
+    cd "$WE_DIR" || exit
     while read -r code;
         do sed "s/replaceme/$code/g" "$WE_DIR"/setup/template.py > "$WE_DIR/scripts/$code.py";
         chmod +x "$WE_DIR/scripts/$code.py";
     done < "$WE_DIR"/setup/codes.txt
     printf "Generating scrap scripts for the following codes…\n"
     listcodes
-    printf "\n$(ls -1q ${WE_DIR}/scripts/*.py | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
+    printf "\n$(find "${WE_DIR}"/scripts/*.py -maxdepth 1 -type f 2>/dev/null | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
     ! has we && in_path="false"
     if [ "$in_path" == "false" ]; then
-       printf "\n'$(basename "$0")' is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] " && read -r
+       printf "\n'%s' is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] " "$(basename "$0")" && read -r
        if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
            [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
            ln -s "$WE_DIR"/we "$HOME"/.local/bin/we
@@ -94,31 +94,31 @@ get() {
     else
         export WE_DIR
         mkdir -p "$WE_DIR"/data
-        cod=$(echo "$1" | tr [a-z] [A-Z]) 
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         python3 "$WE_DIR"/scripts/"$cod".py 2>/dev/null
         if ! [ -f "${WE_DIR}/scripts/${cod}.py" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available."
+            printf '\033[31;1mErr:\033[0m %s\n' "there is no scrap script for $cod yet, please run '$(basename "$0") -s' first and make sure this code is available in '$(basename "$0") -l'."
         fi
     fi
 }
 
 print() {
-    cod=$(echo "$1" | tr [a-z] [A-Z]) 
-    cat "$WE_DIR"/data/"$cod".json | jello
+    cod=$(echo "$1" | tr '[:lower:]' '[:upper:]') 
+    jello < "$WE_DIR"/data/"$cod".json
 }
 
 table() {
-        cod=$(echo "$1" | tr [a-z] [A-Z]) 
-#cat "$WE_DIR"/data/"$cod".json | jello '\
-#result = []
-#for d, t, x in zip(_.Date, _.Title, _.Details):
-#    result.append({"Date": d, "Title: t, "Details": x})
-#result' | jtbl -n
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]') 
+        #cat "$WE_DIR"/data/"$cod".json | jello '\
+        #result = []
+        #for d, t, x in zip(_.Date, _.Title, _.Details):
+        #    result.append({"Date": d, "Title: t, "Details": x})
+        #result' | jtbl -n
         printf "Table output not implemented yet. :("
 }
 
 listcodes() {
-    cat "$WE_DIR"/setup/codes.txt | tr '\n' '\t' | fold -w 80 -s
+     tr '\n' '\t' < "$WE_DIR"/setup/codes.txt | fold -w 80 -s
 }
 
 getcodes() {
@@ -126,17 +126,17 @@ getcodes() {
 }
 
 rmscripts() {
-    printf '\033[33;1mWrn:\033[0m %s' "remove $(ls -1q ${WE_DIR}/scripts/*.py 2>/dev/null | wc -l) scrap scripts? [y/N] " && read -r
+    printf '\033[33;1mWrn:\033[0m %s' "remove $(find "${WE_DIR}"/scripts/*.py -maxdepth 1 -type f 2>/dev/null | wc -l) scrap scripts? [y/N] " && read -r
     if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
         [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
         rm "$WE_DIR"/scripts/*.py 2>/dev/null
         printf "${WE_DIR}/scripts/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
-        printf "Run '$(basename "$0") -s' to regenerate scrap scripts.\n"
+        printf "Run '%s' to regenerate scrap scripts.\n" "$(basename "$0") -s"
     fi
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
     has we && in_path="true"
     if [ "$in_path" == "true" ]; then
-       printf "Also remove '$(basename "$0")' symbolic link from your PATH? [y/N] " && read -r
+       printf "\nAlso remove '%s' symbolic link from your PATH? [y/N] " "$(basename "$0")" && read -r
        if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
            [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
            rm "$HOME"/.local/bin/we
@@ -147,21 +147,21 @@ rmscripts() {
 
 cleardata() {
     if [ -z "$1" ]; then
-        printf '\033[33;1mWrn:\033[0m %s' "you are about to permanently delete $(ls -1q ${WE_DIR}/data/*.json 2>/dev/null | wc -l) previously scraped data file(s). Type YES to confirm. " && read -r
+        printf '\033[33;1mWrn:\033[0m %s' "delete $(find "${WE_DIR}"/data/*json -maxdepth 1 -type f 2>/dev/null | wc -l) previously scraped data file(s)? This cannot be undone. Type YES to confirm. " && read -r
         if [ "$REPLY" = "YES" ]; then
            rm "$WE_DIR"/data/*.json
            printf "${WE_DIR}/data/ directory cleaned. \033[32;1m%s\033[0m\n" '✔'
         fi
     else
-        cod=$(echo "$1" | tr [a-z] [A-Z])
+        cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         if ! [ -f "${WE_DIR}/data/${cod}.json" ]; then
-            printf '\033[31;1mErr:\033[0m %s\n' ""$cod".json was not scraped yet."
+            printf '\033[31;1mErr:\033[0m %s\n' "$cod.json was not scraped yet."
         else
-            printf '\033[33;1mWrn:\033[0m %s' "permanently delete "$cod".json? This cannot be undone. [y/N] " && read -r
+            printf '\033[33;1mWrn:\033[0m %s' "delete $cod.json? This cannot be undone. [y/N] " && read -r
             if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
                 [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
                rm "$WE_DIR"/data/"$cod".json
-               printf "${WE_DIR}/data/"$cod".json removed. \033[32;1m%s\033[0m\n" '✔'
+               printf "${WE_DIR}/data/$cod.json removed. \033[32;1m%s\033[0m\n" '✔'
             fi
         fi
     fi
