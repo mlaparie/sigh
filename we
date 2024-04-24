@@ -75,12 +75,13 @@ setup() {
     printf "Generating scrap scripts for the following codes…\n"
     listcodes
     printf "\n$(find "${WE_DIR}"/scripts/*.py -maxdepth 1 -type f 2>/dev/null | wc -l) scrap scripts created in ${WE_DIR}/scripts/. \033[32;1m%s\033[0m\n" '✔'
+    
     # Check if $(basename "$0") already in PATH, else create symlink into ~/.local/bin/
     ! has we && in_path="false"
     if [ "$in_path" == "false" ]; then
        printf "\n'%s' is not in your PATH. Create symlink into ~/.local/bin/ to access the command from anywhere? [Y/n] " "$(basename "$0")" && read -r
-       if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || \
-           [ "$REPLY" = "yes" ] || [ "$REPLY" = "YES" ]; then
+       if ! [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || \
+           [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
            ln -s "$WE_DIR"/we "$HOME"/.local/bin/we
            printf "Done. You can now run '$(basename "$0")' from anywhere. \033[32;1m%s\033[0m\n" '✔'
        fi
