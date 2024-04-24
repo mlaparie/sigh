@@ -1,12 +1,14 @@
 #!/bin/bash
 # Utility script to scrap data from rsoe-edis.org.
 # Dependencies: python3, fzf, jq, jtbl, less
+# Optional dependencies: bat, rga, kakoune
 # 
 # Author: matf, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
 VERSION=0.4
 WE_DIR="$(dirname "$(readlink -f "$0")")"
 FZFOPTS=( --height=100% --layout=reverse --cycle --border --marker='*' )
+PGR="less -SN"
 
 # Internal functions
 has() {
@@ -32,47 +34,63 @@ exit_on_error() {
     printf '\033[31;1mErr:\033[0m %s\n' "$1" && exit
 }
 
+rgafz() {
+	RG_PREFIX="rga --files-with-matches --smart-case --multiline"
+	local matchingfiles
+	matchingfiles=( "$(
+		FZF_DEFAULT_COMMAND="$RG_PREFIX '$1'" \
+		     fzf --sort --preview="cat {} | jello [[ ! -z {} ]] && rga --pretty --context 2 {q} {}" \
+				--phony -q "$1" \
+				--bind "change:reload:$RG_PREFIX {q}" \
+				--preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
+                                --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} < /dev/tty > /dev/tty)" \
+                                --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} < /dev/tty > /dev/tty)" \
+                                --bind="ctrl-v:execute((cat {} | jtbl -n | ${PGR}) < /dev/tty > /dev/tty)" \
+                                --height=100% \
+                                --cycle --border --marker='*' --multi --layout=reverse-list \
+                                --header=$'[Find text in data files]\n
+    Ret  print selection & exit
+    C-e  edit hovered
+    C-x  edit & beautify hovered
+         dep: kakoune
+    C-v  view table/json hovered')" )
+        if [ -z "${matchingfiles[@]}" ]; then
+            exit 0
+        else
+            printf "${matchingfiles[@]}"
+            exit 0
+        fi
+}
+export -f rgafz
+
 findcmd() {
     find . -type f -printf '%f\n' | sort
 }
 
 fzfcmd() {
     fzf --ansi \
-        --header=$'Ret  print & exit
-C-e  edit
-C-x  edit beautified
-     dep: kakoune
-C-v  view table/json
-C-r  ripgrep
-     dep: rga-fzf
-?    toggle preview\n\n' \
-        --preview="$1" \
+        --header="$1"$'
+    \n    Tab  multi-selection
+    Ret  print selection & exit
+    C-e  edit hovered
+    C-x  edit & beautify hovered
+         dep: kakoune
+    C-v  view table/json hovered
+    C-r  search text in all data
+         dep: rga
+    ?    toggle preview\n\n' \
+        --preview="$2" \
         --preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
         --bind="?:toggle-preview" \
-        --bind="ctrl-r:execute(rga-fzf {} '')" \
-        --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} </dev/tty)" \
-        --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} </dev/tty)" \
-        --bind="$2" \
+        --bind="ctrl-r:execute(rgafz)" \
+        --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} < /dev/tty > /dev/tty)" \
+        --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} < /dev/tty > /dev/tty)" \
         --bind="$3" \
+        --bind="$4" \
         "${FZFOPTS[@]}" \
-        "$4"
+        "$5"
 }
  
-rga-fzf() {
-	RG_PREFIX="rga --files-with-matches --smart-case --multiline"
-	local file
-	file="$(
-		FZF_DEFAULT_COMMAND="$RG_PREFIX '$1'" \
-			fzf --sort --preview="[[ ! -z {} ]] && rga --pretty --context 5 {q} {}" \
-				--phony -q "$1" \
-				--bind "change:reload:$RG_PREFIX {q}" \
-				--preview-window="up:70%:wrap" \
-				--multi
-	)" &&
-	echo "opening $file" &&
-	xdg-open "$file"
-}
-
 quit() {
     exit 0
 }
@@ -85,22 +103,22 @@ show-help() {
     _pht "Usage: $(basename "$0") [OPTION]"
     _pht "       Runs in interactive mode if [OPTION] is not supplied."
     _pht
-    _pht "  Options:"
-    _phi "-g, --get ([TYPE1] [TYPE2] […])          Scrape data for event type(s) to data/TYPE.json."
-    _phi "-p, --print ([TYPE1] [TYPE2] […])        Print saved json data for queried event type(s)."
-    _phi "-t, --table ([TYPE1] [TYPE2] […])        Print saved data as table for queried event type(s)."
-    _phi "-l, --list-types                         List event types currently known to $(basename "$0")."
-    _phi "-u, --update-types                       Upgrade list of available event types."
-    _phi "-R, --remove-data ([TYPE1] [TYPE2] […])  Remove queried data types or all data (confirmation required)."
-    _phi "-s, --setup                              Toggle $(basename "$0") symlink in PATH and prompt for --update-types."
-    _phi "-v, --version                            Print version and full path to working directory."
-    _phi "-h, --help                               Print this help."
+    _pht "Options:"
+    _phi "   -g, --get (TYPE1 TYPE2…)          Scrape data for event type(s) to data/TYPE.json."
+    _phi "   -p, --print (TYPE1 TYPE2…)        Print saved json data for queried event type(s)."
+    _phi "   -t, --table (TYPE1 TYPE2…)        Print saved data as table for queried event type(s)."
+    _phi "   -l, --list-types                  List event types currently known to $(basename "$0")."
+    _phi "   -u, --update-types                Upgrade list of available event types."
+    _phi "   -R, --remove-data (TYPE1 TYPE2…)  Remove queried data type(s) or all data (confirmation required)."
+    _phi "   -s, --setup                       Toggle $(basename "$0") symlink in PATH and prompt for --update-types."
+    _phi "   -v, --version                     Print version and full path to working directory."
+    _phi "   -h, --help                        Print this help."
     _pht
-    _pht "  Improve me:"
-    _phi "https://git.teknik.io/matf/sigh"
+    _pht "Improve me:"
+    _phi "   https://git.teknik.io/matf/sigh"
     _pht
-    _pht "$(basename "$0") depends on its base directory structure. Do not manually move the executable to your PATH."
-    _pht "Use ./$(basename "$0") --setup to create/delete a symbolic link in ~/.local/bin/ instead."
+    _phi "   $(basename "$0") depends on its base directory structure. Do not manually move the executable to your PATH."
+    _phi "   Use ./$(basename "$0") --setup to create/delete a symbolic link in ~/.local/bin/ instead."
     _pht
 }
 
@@ -140,7 +158,7 @@ get() {
     cd "$WE_DIR"/setup 2>/dev/null || exit_on_error "setup/ subdirectory not found. Was 'sigh' moved out of its base folder?"
     mkdir -p "$WE_DIR"/data
     if [ -z "$1" ]; then
-        typ=( $(fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' < types.txt | xargs) )
+        typ=( $(fzf "${FZFOPTS[@]}" --multi --header=$'[Pick event type(s)]\n\n    Tab  multi-selection\n\n' < types.txt | xargs) )
         for i in "${typ[@]}"
             do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
         done
@@ -182,10 +200,10 @@ print() {
         if [ "$ndata" -eq "0" ]; then
             exit_on_error "no data scraped yet. Run $(basename "$0") -g first."
         else
-            typ=( $(fzfcmd "cat {} | jq" "ctrl-p:execute(cat {} | jq)+abort" "ctrl-v:execute(cat {} | jtbl -n | less -SN)" "--multi" < /dev/tty > /dev/tty) )
+            typ=( $(findcmd | fzfcmd "[Print data file(s)]" "${PGR} {} | jq" "ctrl-p:execute((cat {} | jq) < /dev/tty > /dev/tty)+abort" "ctrl-v:execute((cat {} | jtbl -n | ${PGR}) < /dev/tty > /dev/tty)" "--multi") )
             for i in "${typ[@]}"
                 do printf '\n%s\n--------\n' "$i"
-                cat "$i"
+                jq < "$i"
             done
             quit
         fi
@@ -213,10 +231,10 @@ table() {
         if [ "$ndata" -eq "0" ]; then
             exit_on_error "no data scraped yet. Run $(basename "$0") -g first."
         else
-            typ=( $(fzfcmd "cat {} | jtbl -t | less -SN" "ctrl-p:execute(cat {} | jtbl -t)+abort" "ctrl-v:execute(cat {} | jq | less -SN)" "--multi" < /dev/tty > /dev/tty) )
+            typ=( $(findcmd | fzfcmd "[Print data as table(s)]" "cat {} | jtbl -t | ${PGR}" "ctrl-p:execute((cat {} | jtbl -t) < /dev/tty > /dev/tty)+abort" "ctrl-v:execute((cat {} | jq | ${PGR}) < /dev/tty > /dev/tty)" "--multi") )
             for i in "${typ[@]}"
                 do printf '\n%s\n--------\n' "$i"
-                cat "$i"
+                jtbl -n < "$i"
             done
             quit
         fi
@@ -234,6 +252,12 @@ table() {
             fi
         done
     fi
+}
+
+find-text() {
+    cd "$WE_DIR"/data 2>/dev/null || exit_on_error "no data scraped yet. Run $(basename "$0") -g first."
+    rgafz
+    printf "Not implemented yet.\n"
 }
 
 list-types() {
@@ -268,11 +292,11 @@ remove-data() {
                     printf 'Aborted.'
                 fi
             elif [ "$REPLY" = "c" ] || [ "$REPLY" = "C" ]; then
-                typ=( $(findcmd | fzf "${FZFOPTS[@]}" --multi --header=$'Pick event type(s):\nTab  multi-selection\n\n' | xargs) )
+                typ=( $(findcmd | fzf "${FZFOPTS[@]}" --multi --header=$'[Remove data file(s)]\n\n    Tab  multi-selection\n\n' | xargs) )
                 for i in "${typ[@]}"
                     do rm "$i"
                 done
-                printf 'Removed %s data filess. \033[32;1m✔\033[0m\n' "${#typ[@]}"
+                printf 'Removed %s data files. \033[32;1m✔\033[0m\n' "${#typ[@]}"
                 quit
             fi 
         fi
@@ -305,7 +329,7 @@ remove-data() {
 
 interactive() {
     # Use fzf to manipulate program options
-    cmd=$(echo "get print table list-types setup update-types remove-data version show-help quit" \
+    cmd=$(echo "get print table find-text list-types setup update-types remove-data version show-help quit" \
     | tr ' ' '\n' | fzf "${FZFOPTS[@]}")
     eval "$cmd"
 }
@@ -335,6 +359,8 @@ fi
         print "$@" "$WE_DIR" ; exit ;;
     "-t"|"--table")
         table "$@" "$WE_DIR" ; exit ;;
+    "-f"|"--find-text")
+        find-text "$@" "$WE_DIR" ; exit ;;
     "-l"|"--list-types")
         list-types "$WE_DIR" ; exit ;;
     "-s"|"--setup")
