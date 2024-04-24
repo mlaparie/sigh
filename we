@@ -3,7 +3,7 @@
 # Options allow generating/removing scrap scripts
 # and showing/removing scraped data.
 #
-# Dependencies: jello, jtbl
+# Dependencies: jello, jtbl, fzf, less, sed
 # 
 # Author: Kabouik, inspired from aetin (see gemini://aetin.art/earth.gmi)
 
@@ -123,14 +123,14 @@ table() {
 result = []
 for d, t, x in zip(_.Date, _.Title, _.Details):
     result.append({"Date": d, "Title": t, "Details": x})
-result' < "$WE_DIR"/data/"$cod".json | jtbl -n
+result' < "$WE_DIR"/data/"$cod".json | jtbl -n | less -S
     else
         cod=$(echo "$1" | tr '[:lower:]' '[:upper:]')
         jello '\
 result = []
 for d, t, x in zip(_.Date, _.Title, _.Details):
     result.append({"Date": d, "Title": t, "Details": x})
-result' < "$WE_DIR"/data/"$cod".json | jtbl -n
+result' < "$WE_DIR"/data/"$cod".json | jtbl -n | less -S
     fi
 }
 
@@ -186,7 +186,7 @@ cleardata() {
 }
 
 # Dependency check
-for prog in jello jtbl sed; do
+for prog in jello jtbl sed less fzf; do
      ! has "$prog" && dependencies_not_installed="${dependencies_not_installed}${prog}, "
 done
 
