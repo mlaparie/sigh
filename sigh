@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Utility script to scrap data from rsoe-edis.org.
 # Dependencies: python3, fzf, jq, jtbl, less
 # Optional dependencies: bat, rga, kakoune
