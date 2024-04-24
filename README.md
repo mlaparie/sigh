@@ -55,7 +55,10 @@ subdirectories. Do not move the executable. Using a symlink is fine.
 
 ```bash
 $ we --list-codes
-AAT	EPA	EPD	EPH	INH	HEC	LSC	PSI	SDM	TER	EVP	PPP	IND	SUE	IBE	OUD	ERQ	LSL	VOE	FLD	CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT	EXR	HAI	HEW	LIT	PTF	SEW	STO
+AAT	EPA	EPD	EPH	INH	HEC	LSC	PSI	SDM	TER	
+EVP	PPP	IND	SUE	IBE	OUD	ERQ	LSL	VOE	FLD	
+CBE	MIA	OHI	OTE	TRI	AIR	PRA	WTR	CYC	DRT	
+EXR	HAI	HEW	LIT	PTF	SEW	STO	
 
 $ we --get epa
 Appended data to /home/user/Projects/worldevents/data/EPA.json. ✔
@@ -84,7 +87,7 @@ $ we --print epa
   ]
 }
 ```
-```bash
+```
 ###
 # Not implemented yet
 ###
@@ -119,7 +122,7 @@ Run 'we -s' to regenerate scrap scripts.
 - [ ] Implement `-t`
 - [ ] Human readable categories, not only codes
 - [ ] Better appending (avoid duplicates, add request date, merge into same json objects instead of creating new ones)
-- [X] Make functions into a master script that would generate scripts, clear scripts,show data, delete data, and hopefully fetch codes in case of new categories available (latter part not done yet)
+- [x] Make functions into a master script that would generate scripts, clear scripts,show data, delete data, and hopefully fetch codes in case of new categories available (latter part not done yet)
 
 ## Disclaimer
 Credits to aetin. I was just reading about the `gemini` protocol and testing it with the cool `amfora` client, then stumbled upon `gemini://aetin.art/earth.gmi` and found the concept pretty cool, so I started playing with it. I am not a programmer, and I don't know how to write Python, so don't set your expectations too high.
