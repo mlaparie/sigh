@@ -121,7 +121,11 @@ Also remove 'we' symbolic link from your PATH? [y/N] n
 ## To do
 - [ ] Automate scrapping event codes into `setup/codes.txt`
 - [ ] Add an option to scrap all categories at once instead of putting strain on the website with a request for every event category
-- [ ] Implement `-t`
+- [ ] Implement `-t
+- [ ] Fix conflict in `fzf` for custom commands when `fzf` feeds an array (print, table)
+- [ ] Check that `fzf` headers are correct when above bullet done
+- [ ] Implement multi arguments for `-R` and `-C` in addition to single, make sure they still work for all when no code provided (done for `get` and `print` already)
+- [ ] Interactive mode
 - [ ] Human readable categories, not only codes
 - [ ] Better `fzf` interactions (prompt for other option or sequence of options when relevant)
 - [ ] Better appending (avoid duplicates, add request date, merge into same json objects instead of creating new ones)
