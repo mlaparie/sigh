@@ -35,14 +35,21 @@ exit_on_error() {
 }
 
 rgafz() {
+        unset 'typ[0]' ; unset 'typ[-1]'
+        if [ "${#typ[@]}" -eq "0" ]; then
+            find-text
+        fi
+        for i in "${typ[@]}"
+            do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
+        done
 	RG_PREFIX="rga --files-with-matches --smart-case --multiline"
 	local matchingfiles
 	matchingfiles=( "$(
 		FZF_DEFAULT_COMMAND="$RG_PREFIX '$1'" \
-		     fzf --sort --preview="cat {} | jello [[ ! -z {} ]] && rga --pretty --context 2 {q} {}" \
+		     fzf --sort --preview="cat {} | jq | less && [[ ! -z {} ]] && rga --pretty --context 1 {q} {}" \
 				--phony -q "$1" \
 				--bind "change:reload:$RG_PREFIX {q}" \
-				--preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
+				--preview-window="left:70%:wrap:cycle" --delimiter / --with-nth -1 \
                                 --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} < /dev/tty > /dev/tty)" \
                                 --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} < /dev/tty > /dev/tty)" \
                                 --bind="ctrl-v:execute((cat {} | jtbl -n | ${PGR}) < /dev/tty > /dev/tty)" \
@@ -53,7 +60,8 @@ rgafz() {
     C-e  edit hovered
     C-x  edit & beautify hovered
          dep: kakoune
-    C-v  view table/json hovered')" )
+    C-v  view table/json hovered
+    Esc  back to previous mode')" )
         if [ -z "${matchingfiles[@]}" ]; then
             exit 0
         else
@@ -76,13 +84,13 @@ fzfcmd() {
     C-x  edit & beautify hovered
          dep: kakoune
     C-v  view table/json hovered
-    C-r  search text in all data
+    C-f  search text in all data
          dep: rga
     ?    toggle preview\n\n' \
         --preview="$2" \
-        --preview-window="right:80%:wrap:cycle" --delimiter / --with-nth -1 \
+        --preview-window="right:70%:nowrap:cycle" --delimiter / --with-nth -1 \
         --bind="?:toggle-preview" \
-        --bind="ctrl-r:execute(rgafz)" \
+        --bind="ctrl-f:execute(rgafz)" \
         --bind="ctrl-e:execute(${EDITOR:-vim --not-a-term} {} < /dev/tty > /dev/tty)" \
         --bind="ctrl-x:execute(kak -e 'execute-keys <%><|>jq<ret><g><e>' {} < /dev/tty > /dev/tty)" \
         --bind="$3" \
@@ -107,10 +115,11 @@ show-help() {
     _phi "   -g, --get (TYPE1 TYPE2…)          Scrape data for event type(s) to data/TYPE.json."
     _phi "   -p, --print (TYPE1 TYPE2…)        Print saved json data for queried event type(s)."
     _phi "   -t, --table (TYPE1 TYPE2…)        Print saved data as table for queried event type(s)."
+    _phi "   -f, --find-text (TEXT)            Search text in all data, jump to this mode from -p or -t modes with C-r."
     _phi "   -l, --list-types                  List event types currently known to $(basename "$0")."
     _phi "   -u, --update-types                Upgrade list of available event types."
     _phi "   -R, --remove-data (TYPE1 TYPE2…)  Remove queried data type(s) or all data (confirmation required)."
-    _phi "   -s, --setup                       Toggle $(basename "$0") symlink in PATH and prompt for --update-types."
+    _phi "   -s, --setup                       Toggle $(basename "$0") symlink in PATH and prompt for -u."
     _phi "   -v, --version                     Print version and full path to working directory."
     _phi "   -h, --help                        Print this help."
     _pht
@@ -169,7 +178,7 @@ get() {
                 printf '\033[33;1mWrn:\033[0m Please do not abuse this option so that rsoe-edis.org do not set countermeasures against scraping. Type "I promise." to proceed. ' && read -r
                 if [ "$REPLY" = "I promise." ]; then
                     start=`date +%s`
-                    printf '\nScraping all events, time to brew yourself a coffee…\n'
+                    printf '\nScraping all events, time to brew yourself some coffee…\n'
                     for i in "${ALL[@]}"
                     do printf 'Scraping %s event(s)… ' "$i" && python3 getevents.py -t "$i" 2>/dev/null
                     done
@@ -217,7 +226,7 @@ print() {
             do printf '\n%s\n--------\n' "$i.json"
                jq < "$i".json 2>/dev/null
             if ! [ -f "$i.json" ]; then
-               printf ' \033[31;1mErr:\033[0m %s\n' "no data scraped for $i yet. Run $(basename "$0") -g $i first."
+               printf '\033[31;1mErr:\033[0m no data scraped for %s yet. Run $(basename "$0") -g %s first.\n' "$i"
             fi
         done
     fi
@@ -248,7 +257,7 @@ table() {
             do printf '\n%s\n--------\n' "$i.json"
                jtbl -t < "$i".json 2>/dev/null
             if ! [ -f "$i.json" ]; then
-               printf ' \033[31;1mErr:\033[0m %s\n' "no data scraped for $i yet. Run $(basename "$0") -g $i first."
+               printf '\033[31;1mErr:\033[0m no data scraped for %s yet. Run $(basename "$0") -g %s first.\n' "$i"
             fi
         done
     fi
@@ -256,8 +265,7 @@ table() {
 
 find-text() {
     cd "$WE_DIR"/data 2>/dev/null || exit_on_error "no data scraped yet. Run $(basename "$0") -g first."
-    rgafz
-    printf "Not implemented yet.\n"
+    findcmd | rgafz "$2"
 }
 
 list-types() {
@@ -284,7 +292,7 @@ remove-data() {
             if [ "$REPLY" = "a" ] || [ "$REPLY" = "A" ] || [ "$REPLY" = "" ]; then
                 printf 'Aborted.'
             elif [ "$REPLY" = "r" ] || [ "$REPLY" = "R" ]; then
-                printf 'This action cannot be undone and data will be lost. Type YES to confirm. ' && read -r
+                printf 'This action cannot be undone. Type YES to confirm. ' && read -r
                 if [ "$REPLY" = "YES" ]; then
                     find . -type f -name '*.json' -delete 2>/dev/null
                     printf '\033[32;1m✔\033[0m %s/data/ directory cleaned.\n' "${WE_DIR}"
@@ -307,18 +315,18 @@ remove-data() {
             remove-data
             quit
         fi
-        printf '\033[33;1mWrn:\033[0m %s' "remove ${#typ[@]} data files? This action cannot be undone and data will be lost. [Y/n] " && read -r
+        printf '\033[33;1mWrn:\033[0m %s' "remove ${#typ[@]} data files? [Y/n] " && read -r
         if [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] || [ "$REPLY" = "no" ] || [ "$REPLY" = "NO" ]; then
             quit
         else
-            printf 'This cannot be undone. Type YES to confirm. ' && read -r
+            printf 'This action cannot be undone. Type YES to confirm. ' && read -r
             if [ "$REPLY" = "YES" ]; then
                 for i in "${typ[@]}"; do
-                    if ! [ -f "$i" ]; then
-                        printf ' \033[31;1mErr:\033[0m %s\n' "no $i data to delete."
+                    if ! [ -f "$i.json" ]; then
+                        printf '\033[31;1mErr:\033[0m no %s data to delete.\n' "$i"
                     else
-                        rm "$i" 2>/dev/null
-                        printf 'Removed %s.data \033[32;1m✔\033[0m\n' "$i"
+                        rm "$i.json" 2>/dev/null
+                        printf 'Removed %s.json. \033[32;1m✔\033[0m\n' "$i"
                     fi
                 done
                 quit
