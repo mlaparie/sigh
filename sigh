@@ -234,7 +234,7 @@ table() {
             typ=( $(findcmd | fzfcmd "[Print data as table(s)]" "cat {} | jtbl -t | ${PGR}" "ctrl-p:execute((cat {} | jtbl -t) < /dev/tty > /dev/tty)+abort" "ctrl-v:execute((cat {} | jq | ${PGR}) < /dev/tty > /dev/tty)" "--multi") )
             for i in "${typ[@]}"
                 do printf '\n%s\n--------\n' "$i"
-                jtbl -n < "$i"
+                jtbl -t < "$i"
             done
             quit
         fi
